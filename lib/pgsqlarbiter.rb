@@ -5,6 +5,7 @@ require_relative "pgsqlarbiter/error"
 require_relative "pgsqlarbiter/token"
 require_relative "pgsqlarbiter/keywords"
 require_relative "pgsqlarbiter/result"
+require_relative "pgsqlarbiter/safe_functions"
 require_relative "pgsqlarbiter/lexer"
 require_relative "pgsqlarbiter/analyzer"
 
