@@ -233,23 +233,23 @@ class TestIntegration < Minitest::Test
   # ====================================================================
 
   def test_allowed_simple
-    assert Pgsqlarbiter.allowed?("SELECT * FROM users", tables: ["users"], functions: [])
+    assert Pgsqlarbiter.allow?("SELECT * FROM users", tables: ["users"], functions: [])
   end
 
   def test_not_allowed_missing_table
-    refute Pgsqlarbiter.allowed?("SELECT * FROM users", tables: ["other"], functions: [])
+    refute Pgsqlarbiter.allow?("SELECT * FROM users", tables: ["other"], functions: [])
   end
 
   def test_allowed_with_function
-    assert Pgsqlarbiter.allowed?("SELECT count(*) FROM users", tables: ["users"], functions: ["count"])
+    assert Pgsqlarbiter.allow?("SELECT count(*) FROM users", tables: ["users"], functions: ["count"])
   end
 
   def test_not_allowed_missing_function
-    refute Pgsqlarbiter.allowed?("SELECT count(*) FROM users", tables: ["users"], functions: [])
+    refute Pgsqlarbiter.allow?("SELECT count(*) FROM users", tables: ["users"], functions: [])
   end
 
   def test_allowed_complex_query
-    assert Pgsqlarbiter.allowed?(
+    assert Pgsqlarbiter.allow?(
       "SELECT u.name, count(*) FROM users u JOIN orders o ON u.id = o.user_id GROUP BY u.name",
       tables: ["users", "orders"],
       functions: ["count"]
@@ -257,7 +257,7 @@ class TestIntegration < Minitest::Test
   end
 
   def test_not_allowed_extra_table
-    refute Pgsqlarbiter.allowed?(
+    refute Pgsqlarbiter.allow?(
       "SELECT * FROM users JOIN secrets ON users.id = secrets.user_id",
       tables: ["users"],
       functions: []
@@ -266,13 +266,13 @@ class TestIntegration < Minitest::Test
 
   def test_allowed_rejects_disallowed_statement
     assert_raises(Pgsqlarbiter::DisallowedStatementError) do
-      Pgsqlarbiter.allowed?("DROP TABLE users", tables: ["users"], functions: [])
+      Pgsqlarbiter.allow?("DROP TABLE users", tables: ["users"], functions: [])
     end
   end
 
   def test_allowed_rejects_multiple_statements
     assert_raises(Pgsqlarbiter::MultipleStatementsError) do
-      Pgsqlarbiter.allowed?("SELECT 1; SELECT 2", tables: [], functions: [])
+      Pgsqlarbiter.allow?("SELECT 1; SELECT 2", tables: [], functions: [])
     end
   end
 

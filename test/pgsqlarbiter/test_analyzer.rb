@@ -525,7 +525,7 @@ class TestAnalyzer < Minitest::Test
   end
 
   def test_whitelist_with_spaced_identifiers
-    assert Pgsqlarbiter.allowed?(
+    assert Pgsqlarbiter.allow?(
       'SELECT * FROM "my schema"."my table"',
       tables: ["my schema.my table"],
       functions: []
