@@ -14,7 +14,7 @@ module Pgsqlarbiter
     Analyzer.new.analyze(sql)
   end
 
-  def self.allowed?(sql, tables:, functions:)
+  def self.allowed?(sql, tables:, functions: SAFE_FUNCTIONS)
     result = analyze(sql)
     allowed_tables = Set.new(tables)
     allowed_functions = Set.new(functions)
