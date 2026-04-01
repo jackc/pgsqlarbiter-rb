@@ -504,6 +504,55 @@ class TestAnalyzer < Minitest::Test
   end
 
   # ====================================================================
+  # Quoted identifiers with spaces (supported)
+  # ====================================================================
+
+  def test_quoted_table_with_space
+    assert_equal ["my table"], analyze('SELECT * FROM "my table"').tables
+  end
+
+  def test_quoted_schema_and_table_with_spaces
+    assert_equal ["my schema.my table"], analyze('SELECT * FROM "my schema"."my table"').tables
+  end
+
+  def test_quoted_table_with_space_and_alias
+    assert_equal ["my table"], analyze('SELECT * FROM "my table" AS t').tables
+  end
+
+  def test_quoted_function_with_space
+    result = analyze('SELECT "my func"(1)')
+    assert_includes result.functions, "my func"
+  end
+
+  def test_whitelist_with_spaced_identifiers
+    assert Pgsqlarbiter.allowed?(
+      'SELECT * FROM "my schema"."my table"',
+      tables: ["my schema.my table"],
+      functions: []
+    )
+  end
+
+  # ====================================================================
+  # Quoted identifiers with dots (rejected — ambiguous representation)
+  # ====================================================================
+
+  def test_reject_quoted_table_with_dot
+    assert_raises(Pgsqlarbiter::ParseError) { analyze('SELECT * FROM "my.table"') }
+  end
+
+  def test_reject_quoted_schema_qualified_table_with_dot
+    assert_raises(Pgsqlarbiter::ParseError) { analyze('SELECT * FROM schema."my.table"') }
+  end
+
+  def test_reject_quoted_function_with_dot
+    assert_raises(Pgsqlarbiter::ParseError) { analyze('SELECT "my.func"(1)') }
+  end
+
+  def test_reject_quoted_schema_with_dot
+    assert_raises(Pgsqlarbiter::ParseError) { analyze('SELECT * FROM "my.schema".table_name') }
+  end
+
+  # ====================================================================
   # Function extraction — basic
   # ====================================================================
 

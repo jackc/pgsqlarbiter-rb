@@ -75,7 +75,12 @@ module Pgsqlarbiter
     def identifier_value(token)
       case token.type
       when IDENT then token.value
-      when QUOTED_IDENT then token.value
+      when QUOTED_IDENT
+        if token.value.include?(".")
+          raise ParseError,
+            "quoted identifier containing a dot is not supported: \"#{token.value}\""
+        end
+        token.value
       when KEYWORD then token.value.downcase
       else token.value.to_s
       end

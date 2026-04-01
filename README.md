@@ -20,3 +20,4 @@ pgsqlarbiter is not sufficient security on its own. It is designed to be an addi
 
 * pgsqlarbiter uses its own SQL parser. A potential weakness is a mismatch between the pgsqlarbiter and PostgreSQL SQL parsers.
 * Operators and type casts are implemented via functions. These pass through without filtering.
+* Identifiers with containing dots are rejected.
