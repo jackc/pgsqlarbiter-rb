@@ -602,6 +602,37 @@ class TestAnalyzer < Minitest::Test
     refute_includes result.tables, "schema.my_func"
   end
 
+  def test_xmltable
+    result = analyze(<<~SQL)
+      SELECT * FROM xmltable('/rows/row' PASSING data COLUMNS id int, name text)
+    SQL
+    assert_includes result.functions, "xmltable"
+    refute_includes result.tables, "xmltable"
+  end
+
+  def test_json_table
+    result = analyze(<<~SQL)
+      SELECT * FROM json_table(data, '$.items[*]' COLUMNS (id int, name text))
+    SQL
+    assert_includes result.functions, "json_table"
+    refute_includes result.tables, "json_table"
+    refute_includes result.functions, "columns"
+  end
+
+  def test_json_table_with_nested_path
+    result = analyze(<<~SQL)
+      SELECT * FROM json_table(
+        data, '$.root[*]'
+        COLUMNS (
+          id int,
+          NESTED PATH '$.tags[*]' COLUMNS (tag text)
+        )
+      )
+    SQL
+    assert_includes result.functions, "json_table"
+    refute_includes result.functions, "columns"
+  end
+
   # ====================================================================
   # Function extraction — recognized-function keywords (ARE extracted)
   # ====================================================================

@@ -463,4 +463,31 @@ class TestIntegration < Minitest::Test
     refute_includes result.tables, "generate_series"
     refute_includes result.functions, "g"
   end
+
+  def test_xmltable_allowed
+    assert Pgsqlarbiter.allow?(
+      "SELECT * FROM xmltable('/rows/row' PASSING data COLUMNS id int, name text)",
+      tables: [],
+      functions: ["xmltable"]
+    )
+  end
+
+  def test_json_table_allowed
+    assert Pgsqlarbiter.allow?(
+      "SELECT * FROM json_table(data, '$.items[*]' COLUMNS (id int, name text PATH '$.name'))",
+      tables: [],
+      functions: ["json_table"]
+    )
+  end
+
+  def test_json_table_with_table_join
+    result = analyze(<<~SQL)
+      SELECT t.id, jt.val
+      FROM my_table t,
+           json_table(t.data, '$.items[*]' COLUMNS (val text)) AS jt
+    SQL
+    assert_includes result.tables, "my_table"
+    assert_includes result.functions, "json_table"
+    refute_includes result.functions, "columns"
+  end
 end

@@ -40,7 +40,7 @@ module Pgsqlarbiter
       "WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "OFFSET", "FETCH",
       "UNION", "INTERSECT", "EXCEPT",
       "ALL", "DISTINCT", "LATERAL", "ONLY", "TABLE",
-      "RETURNING", "RECURSIVE",
+      "RETURNING", "RECURSIVE", "COLUMNS",
       "NOT", "MATERIALIZED",
       "MATCHED", "WHEN", "THEN", "BY",
       "AND", "OR", "IS", "IN", "BETWEEN",

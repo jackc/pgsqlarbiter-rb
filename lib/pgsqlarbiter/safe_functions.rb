@@ -117,6 +117,7 @@ module Pgsqlarbiter
     "json_array_elements", "jsonb_array_elements",
     "json_array_elements_text", "jsonb_array_elements_text",
     "json_scalar", "jsonb_scalar",
+    "json_table",
 
     # -- Array functions --
     "array_append", "array_cat", "array_dims", "array_fill",
@@ -161,6 +162,7 @@ module Pgsqlarbiter
     # -- XML functions --
     "xmlcomment", "xmlconcat", "xmlexists",
     "xmlelement", "xmlforest", "xmlparse", "xmlroot", "xmlserialize",
+    "xmltable",
     "xpath", "xpath_exists",
 
     # -- Grouping function --
