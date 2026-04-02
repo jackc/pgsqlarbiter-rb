@@ -153,53 +153,58 @@ module Pgsqlarbiter
     # --- Phase 3: Pre-collect CTE names (index-based, no @pos modification) ---
 
     def pre_collect_cte_names!
-      i = 0
-      while i < @tokens.length
-        tok = @tokens[i]
-        if tok.type == KEYWORD && tok.value == "WITH"
+      collect_cte_names_in_range!(0, @tokens.length)
+    end
+
+    def collect_cte_names_in_range!(from, to)
+      i = from
+      while i < to
+        if @tokens[i].type == KEYWORD && @tokens[i].value == "WITH"
           i += 1
-          i += 1 if @tokens[i]&.type == KEYWORD && @tokens[i]&.value == "RECURSIVE"
+          i += 1 if i < to && @tokens[i]&.type == KEYWORD && @tokens[i]&.value == "RECURSIVE"
           loop do
-            break unless i < @tokens.length && (@tokens[i].type == IDENT || @tokens[i].type == QUOTED_IDENT)
+            break unless i < to && (@tokens[i].type == IDENT || @tokens[i].type == QUOTED_IDENT)
             @cte_names << identifier_value(@tokens[i])
             i += 1
             # Skip optional column list
-            if @tokens[i]&.type == LPAREN
+            if i < to && @tokens[i]&.type == LPAREN
               depth = 1; i += 1
-              while depth > 0 && i < @tokens.length
+              while depth > 0 && i < to
                 depth += 1 if @tokens[i].type == LPAREN
                 depth -= 1 if @tokens[i].type == RPAREN
                 i += 1
               end
             end
             # Skip AS [NOT] MATERIALIZED
-            if @tokens[i]&.type == KEYWORD && @tokens[i]&.value == "AS"
+            if i < to && @tokens[i]&.type == KEYWORD && @tokens[i]&.value == "AS"
               i += 1
-              if @tokens[i]&.type == KEYWORD && @tokens[i]&.value == "NOT"
+              if i < to && @tokens[i]&.type == KEYWORD && @tokens[i]&.value == "NOT"
                 i += 1
-                i += 1 if @tokens[i]&.type == KEYWORD && @tokens[i]&.value == "MATERIALIZED"
-              elsif @tokens[i]&.type == KEYWORD && @tokens[i]&.value == "MATERIALIZED"
+                i += 1 if i < to && @tokens[i]&.type == KEYWORD && @tokens[i]&.value == "MATERIALIZED"
+              elsif i < to && @tokens[i]&.type == KEYWORD && @tokens[i]&.value == "MATERIALIZED"
                 i += 1
               end
-              # Skip CTE body
-              if @tokens[i]&.type == LPAREN
+              # Recurse into CTE body for nested WITH clauses, then skip it
+              if i < to && @tokens[i]&.type == LPAREN
+                body_start = i + 1
                 depth = 1; i += 1
-                while depth > 0 && i < @tokens.length
+                while depth > 0 && i < to
                   depth += 1 if @tokens[i].type == LPAREN
                   depth -= 1 if @tokens[i].type == RPAREN
                   i += 1
                 end
+                collect_cte_names_in_range!(body_start, i - 1)
               end
             end
-            if @tokens[i]&.type == COMMA
+            if i < to && @tokens[i]&.type == COMMA
               i += 1
             else
               break
             end
           end
-          break # only process first WITH clause at top level
+        else
+          i += 1
         end
-        i += 1
       end
     end
 

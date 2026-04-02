@@ -481,6 +481,23 @@ class TestAnalyzer < Minitest::Test
     refute_includes result.tables, "cte"
   end
 
+  def test_nested_cte_in_subquery
+    # A CTE defined inside a subquery within an outer CTE body should not leak as a table name
+    result = analyze("WITH outer_cte AS (SELECT * FROM (WITH inner_cte AS (SELECT * FROM t1) SELECT * FROM inner_cte) sub) SELECT * FROM outer_cte")
+    assert_includes result.tables, "t1"
+    refute_includes result.tables, "inner_cte"
+    refute_includes result.tables, "outer_cte"
+  end
+
+  def test_nested_cte_in_from_subquery
+    # A CTE defined inside a subquery in the main query's FROM clause
+    result = analyze("WITH c1 AS (SELECT * FROM t1) SELECT * FROM c1 JOIN (WITH c2 AS (SELECT * FROM t2) SELECT * FROM c2) sub ON c1.id = sub.id")
+    assert_includes result.tables, "t1"
+    assert_includes result.tables, "t2"
+    refute_includes result.tables, "c1"
+    refute_includes result.tables, "c2"
+  end
+
   # ====================================================================
   # Table extraction — LATERAL
   # ====================================================================
