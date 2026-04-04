@@ -272,10 +272,7 @@ class TestAnalyzer < Minitest::Test
   end
 
   def test_from_comma_with_join
-    tables = analyze("SELECT * FROM a, b JOIN c ON b.id = c.id").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
-    assert_includes tables, "c"
+    assert_equal ["a", "b", "c"], analyze("SELECT * FROM a, b JOIN c ON b.id = c.id").tables.sort
   end
 
   # ====================================================================
@@ -283,65 +280,43 @@ class TestAnalyzer < Minitest::Test
   # ====================================================================
 
   def test_join
-    tables = analyze("SELECT * FROM a JOIN b ON a.id = b.id").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
+    assert_equal ["a", "b"], analyze("SELECT * FROM a JOIN b ON a.id = b.id").tables.sort
   end
 
   def test_inner_join
-    tables = analyze("SELECT * FROM a INNER JOIN b ON a.id = b.id").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
+    assert_equal ["a", "b"], analyze("SELECT * FROM a INNER JOIN b ON a.id = b.id").tables.sort
   end
 
   def test_left_join
-    tables = analyze("SELECT * FROM a LEFT JOIN b ON a.id = b.id").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
+    assert_equal ["a", "b"], analyze("SELECT * FROM a LEFT JOIN b ON a.id = b.id").tables.sort
   end
 
   def test_left_outer_join
-    tables = analyze("SELECT * FROM a LEFT OUTER JOIN b ON a.id = b.id").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
+    assert_equal ["a", "b"], analyze("SELECT * FROM a LEFT OUTER JOIN b ON a.id = b.id").tables.sort
   end
 
   def test_right_join
-    tables = analyze("SELECT * FROM a RIGHT JOIN b ON a.id = b.id").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
+    assert_equal ["a", "b"], analyze("SELECT * FROM a RIGHT JOIN b ON a.id = b.id").tables.sort
   end
 
   def test_full_join
-    tables = analyze("SELECT * FROM a FULL JOIN b ON a.id = b.id").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
+    assert_equal ["a", "b"], analyze("SELECT * FROM a FULL JOIN b ON a.id = b.id").tables.sort
   end
 
   def test_full_outer_join
-    tables = analyze("SELECT * FROM a FULL OUTER JOIN b ON a.id = b.id").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
+    assert_equal ["a", "b"], analyze("SELECT * FROM a FULL OUTER JOIN b ON a.id = b.id").tables.sort
   end
 
   def test_cross_join
-    tables = analyze("SELECT * FROM a CROSS JOIN b").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
+    assert_equal ["a", "b"], analyze("SELECT * FROM a CROSS JOIN b").tables.sort
   end
 
   def test_natural_join
-    tables = analyze("SELECT * FROM a NATURAL JOIN b").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
+    assert_equal ["a", "b"], analyze("SELECT * FROM a NATURAL JOIN b").tables.sort
   end
 
   def test_multiple_joins
-    tables = analyze("SELECT * FROM a JOIN b ON a.id = b.id LEFT JOIN c ON a.id = c.id CROSS JOIN d").tables
-    assert_includes tables, "a"
-    assert_includes tables, "b"
-    assert_includes tables, "c"
-    assert_includes tables, "d"
+    assert_equal ["a", "b", "c", "d"], analyze("SELECT * FROM a JOIN b ON a.id = b.id LEFT JOIN c ON a.id = c.id CROSS JOIN d").tables.sort
   end
 
   # ====================================================================
@@ -357,9 +332,7 @@ class TestAnalyzer < Minitest::Test
   end
 
   def test_insert_into_select_tables
-    tables = analyze("INSERT INTO target SELECT * FROM source").tables
-    assert_includes tables, "target"
-    assert_includes tables, "source"
+    assert_equal ["source", "target"], analyze("INSERT INTO target SELECT * FROM source").tables.sort
   end
 
   # ====================================================================
@@ -375,9 +348,7 @@ class TestAnalyzer < Minitest::Test
   end
 
   def test_update_with_from
-    tables = analyze("UPDATE t SET x = s.x FROM source s WHERE t.id = s.id").tables
-    assert_includes tables, "t"
-    assert_includes tables, "source"
+    assert_equal ["source", "t"], analyze("UPDATE t SET x = s.x FROM source s WHERE t.id = s.id").tables.sort
   end
 
   # ====================================================================
@@ -393,9 +364,7 @@ class TestAnalyzer < Minitest::Test
   end
 
   def test_delete_using
-    tables = analyze("DELETE FROM target USING source WHERE target.id = source.id").tables
-    assert_includes tables, "target"
-    assert_includes tables, "source"
+    assert_equal ["source", "target"], analyze("DELETE FROM target USING source WHERE target.id = source.id").tables.sort
   end
 
   # ====================================================================
@@ -403,15 +372,11 @@ class TestAnalyzer < Minitest::Test
   # ====================================================================
 
   def test_merge_into_using
-    tables = analyze("MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE").tables
-    assert_includes tables, "t"
-    assert_includes tables, "s"
+    assert_equal ["s", "t"], analyze("MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE").tables.sort
   end
 
   def test_merge_with_subquery_using
-    tables = analyze("MERGE INTO t USING (SELECT * FROM s) AS sub ON t.id = sub.id WHEN MATCHED THEN DELETE").tables
-    assert_includes tables, "t"
-    assert_includes tables, "s"
+    assert_equal ["s", "t"], analyze("MERGE INTO t USING (SELECT * FROM s) AS sub ON t.id = sub.id WHEN MATCHED THEN DELETE").tables.sort
   end
 
   # ====================================================================
@@ -447,15 +412,11 @@ class TestAnalyzer < Minitest::Test
   end
 
   def test_subquery_in_where_in
-    tables = analyze("SELECT * FROM t WHERE id IN (SELECT id FROM s)").tables
-    assert_includes tables, "t"
-    assert_includes tables, "s"
+    assert_equal ["s", "t"], analyze("SELECT * FROM t WHERE id IN (SELECT id FROM s)").tables.sort
   end
 
   def test_subquery_in_where_exists
-    tables = analyze("SELECT * FROM t WHERE EXISTS (SELECT 1 FROM s)").tables
-    assert_includes tables, "t"
-    assert_includes tables, "s"
+    assert_equal ["s", "t"], analyze("SELECT * FROM t WHERE EXISTS (SELECT 1 FROM s)").tables.sort
   end
 
   # ====================================================================
@@ -469,33 +430,24 @@ class TestAnalyzer < Minitest::Test
 
   def test_multiple_ctes
     result = analyze("WITH c1 AS (SELECT * FROM t1), c2 AS (SELECT * FROM t2) SELECT * FROM c1 JOIN c2 ON c1.id = c2.id")
-    assert_includes result.tables, "t1"
-    assert_includes result.tables, "t2"
-    refute_includes result.tables, "c1"
-    refute_includes result.tables, "c2"
+    assert_equal ["t1", "t2"], result.tables.sort
   end
 
   def test_recursive_cte
     result = analyze("WITH RECURSIVE cte AS (SELECT * FROM t UNION ALL SELECT * FROM cte JOIN t ON cte.pid = t.id) SELECT * FROM cte")
-    assert_includes result.tables, "t"
-    refute_includes result.tables, "cte"
+    assert_equal ["t"], result.tables
   end
 
   def test_nested_cte_in_subquery
     # A CTE defined inside a subquery within an outer CTE body should not leak as a table name
     result = analyze("WITH outer_cte AS (SELECT * FROM (WITH inner_cte AS (SELECT * FROM t1) SELECT * FROM inner_cte) sub) SELECT * FROM outer_cte")
-    assert_includes result.tables, "t1"
-    refute_includes result.tables, "inner_cte"
-    refute_includes result.tables, "outer_cte"
+    assert_equal ["t1"], result.tables
   end
 
   def test_nested_cte_in_from_subquery
     # A CTE defined inside a subquery in the main query's FROM clause
     result = analyze("WITH c1 AS (SELECT * FROM t1) SELECT * FROM c1 JOIN (WITH c2 AS (SELECT * FROM t2) SELECT * FROM c2) sub ON c1.id = sub.id")
-    assert_includes result.tables, "t1"
-    assert_includes result.tables, "t2"
-    refute_includes result.tables, "c1"
-    refute_includes result.tables, "c2"
+    assert_equal ["t1", "t2"], result.tables.sort
   end
 
   # ====================================================================
@@ -503,9 +455,7 @@ class TestAnalyzer < Minitest::Test
   # ====================================================================
 
   def test_lateral_subquery
-    tables = analyze("SELECT * FROM t, LATERAL (SELECT * FROM s WHERE s.id = t.id) sub").tables
-    assert_includes tables, "t"
-    assert_includes tables, "s"
+    assert_equal ["s", "t"], analyze("SELECT * FROM t, LATERAL (SELECT * FROM s WHERE s.id = t.id) sub").tables.sort
   end
 
   # ====================================================================
@@ -579,9 +529,7 @@ class TestAnalyzer < Minitest::Test
   end
 
   def test_function_multiple
-    result = analyze("SELECT sum(x), avg(y) FROM t")
-    assert_includes result.functions, "sum"
-    assert_includes result.functions, "avg"
+    assert_equal ["avg", "sum"], analyze("SELECT sum(x), avg(y) FROM t").functions.sort
   end
 
   def test_function_upper

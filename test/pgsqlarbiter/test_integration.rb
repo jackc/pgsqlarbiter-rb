@@ -20,20 +20,13 @@ class TestIntegration < Minitest::Test
       LEFT JOIN (SELECT * FROM addresses) a ON u.id = a.user_id
       WHERE u.active = true
     SQL
-    assert_includes result.tables, "orders"
-    assert_includes result.tables, "users"
-    assert_includes result.tables, "addresses"
-    refute_includes result.tables, "recent"
-    refute_includes result.tables, "u"
-    refute_includes result.tables, "r"
-    refute_includes result.tables, "a"
+    assert_equal ["addresses", "orders", "users"], result.tables.sort
     assert_equal :select, result.statement_type
   end
 
   def test_insert_with_subquery
     result = analyze("INSERT INTO archive SELECT * FROM logs WHERE date < '2024-01-01'")
-    assert_includes result.tables, "archive"
-    assert_includes result.tables, "logs"
+    assert_equal ["archive", "logs"], result.tables.sort
     assert_equal :insert, result.statement_type
   end
 
@@ -43,9 +36,8 @@ class TestIntegration < Minitest::Test
       FROM categories
       WHERE products.cat_id = categories.id
     SQL
-    assert_includes result.tables, "products"
-    assert_includes result.tables, "categories"
-    assert_includes result.functions, "round"
+    assert_equal ["categories", "products"], result.tables.sort
+    assert_equal ["round"], result.functions
     assert_equal :update, result.statement_type
   end
 
@@ -55,8 +47,7 @@ class TestIntegration < Minitest::Test
       USING customers
       WHERE orders.customer_id = customers.id AND customers.deleted = true
     SQL
-    assert_includes result.tables, "orders"
-    assert_includes result.tables, "customers"
+    assert_equal ["customers", "orders"], result.tables.sort
     assert_equal :delete, result.statement_type
   end
 
@@ -67,10 +58,7 @@ class TestIntegration < Minitest::Test
       WHEN MATCHED THEN UPDATE SET val = s.val
       WHEN NOT MATCHED THEN INSERT (id, val) VALUES (s.id, s.val)
     SQL
-    assert_includes result.tables, "target"
-    assert_includes result.tables, "source"
-    refute_includes result.tables, "t"
-    refute_includes result.tables, "s"
+    assert_equal ["source", "target"], result.tables.sort
     assert_equal :merge, result.statement_type
   end
 
@@ -82,10 +70,8 @@ class TestIntegration < Minitest::Test
       WHEN MATCHED THEN UPDATE SET quantity = t.quantity + s.qty
       WHEN NOT MATCHED THEN INSERT (product_id, quantity) VALUES (s.product_id, s.qty)
     SQL
-    assert_includes result.tables, "inventory"
-    assert_includes result.tables, "shipments"
-    assert_includes result.functions, "sum"
-    refute_includes result.tables, "s"
+    assert_equal ["inventory", "shipments"], result.tables.sort
+    assert_equal ["sum"], result.functions
     assert_equal :merge, result.statement_type
   end
 
@@ -99,11 +85,7 @@ class TestIntegration < Minitest::Test
       JOIN recent_orders o ON u.id = o.user_id
       LEFT JOIN addresses a ON u.id = a.user_id
     SQL
-    assert_includes result.tables, "users"
-    assert_includes result.tables, "orders"
-    assert_includes result.tables, "addresses"
-    refute_includes result.tables, "active_users"
-    refute_includes result.tables, "recent_orders"
+    assert_equal ["addresses", "orders", "users"], result.tables.sort
   end
 
   def test_complex_select_with_many_functions
@@ -119,15 +101,8 @@ class TestIntegration < Minitest::Test
       WHERE a.status = 'active'
       GROUP BY a.name, extract(year FROM created_at)
     SQL
-    assert_includes result.tables, "transactions"
-    assert_includes result.tables, "accounts"
-    assert_includes result.functions, "count"
-    assert_includes result.functions, "sum"
-    assert_includes result.functions, "avg"
-    assert_includes result.functions, "coalesce"
-    assert_includes result.functions, "extract"
-    refute_includes result.tables, "t"
-    refute_includes result.tables, "a"
+    assert_equal ["accounts", "transactions"], result.tables.sort
+    assert_equal ["avg", "coalesce", "count", "extract", "sum"], result.functions.sort
   end
 
   def test_deeply_nested_subqueries
@@ -151,10 +126,8 @@ class TestIntegration < Minitest::Test
         (SELECT max(date) FROM orders o WHERE o.user_id = u.id) AS last_order
       FROM users u
     SQL
-    assert_includes result.tables, "users"
-    assert_includes result.tables, "orders"
-    assert_includes result.functions, "count"
-    assert_includes result.functions, "max"
+    assert_equal ["orders", "users"], result.tables.sort
+    assert_equal ["count", "max"], result.functions.sort
   end
 
   def test_union_query
@@ -163,8 +136,7 @@ class TestIntegration < Minitest::Test
       UNION ALL
       SELECT id, name FROM archived_users
     SQL
-    assert_includes result.tables, "active_users"
-    assert_includes result.tables, "archived_users"
+    assert_equal ["active_users", "archived_users"], result.tables.sort
   end
 
   def test_insert_with_returning
@@ -173,9 +145,8 @@ class TestIntegration < Minitest::Test
       SELECT 'login', id FROM users WHERE last_login > now() - interval '1 day'
       RETURNING id
     SQL
-    assert_includes result.tables, "audit_log"
-    assert_includes result.tables, "users"
-    assert_includes result.functions, "now"
+    assert_equal ["audit_log", "users"], result.tables.sort
+    assert_equal ["now"], result.functions
   end
 
   # ====================================================================
@@ -314,8 +285,7 @@ class TestIntegration < Minitest::Test
       SELECT * FROM products p
       WHERE EXISTS (SELECT 1 FROM inventory i WHERE i.product_id = p.id AND i.quantity > 0)
     SQL
-    assert_includes result.tables, "products"
-    assert_includes result.tables, "inventory"
+    assert_equal ["inventory", "products"], result.tables.sort
     refute_includes result.functions, "exists"
   end
 
@@ -324,8 +294,7 @@ class TestIntegration < Minitest::Test
       SELECT * FROM users
       WHERE id IN (SELECT user_id FROM active_sessions)
     SQL
-    assert_includes result.tables, "users"
-    assert_includes result.tables, "active_sessions"
+    assert_equal ["active_sessions", "users"], result.tables.sort
   end
 
   def test_values_with_function_calls
@@ -363,8 +332,7 @@ class TestIntegration < Minitest::Test
       USING child_table
       WHERE parent_table.id = child_table.parent_id
     SQL
-    assert_includes result.tables, "parent_table"
-    assert_includes result.tables, "child_table"
+    assert_equal ["child_table", "parent_table"], result.tables.sort
   end
 
   def test_update_with_multiple_from_tables
@@ -374,9 +342,7 @@ class TestIntegration < Minitest::Test
       FROM source1 s1, source2 s2
       WHERE t.id = s1.id AND t.id = s2.id
     SQL
-    assert_includes result.tables, "target"
-    assert_includes result.tables, "source1"
-    assert_includes result.tables, "source2"
+    assert_equal ["source1", "source2", "target"], result.tables.sort
   end
 
   def test_lateral_join
@@ -385,8 +351,7 @@ class TestIntegration < Minitest::Test
       FROM users u,
       LATERAL (SELECT * FROM orders o WHERE o.user_id = u.id ORDER BY date DESC LIMIT 5) recent
     SQL
-    assert_includes result.tables, "users"
-    assert_includes result.tables, "orders"
+    assert_equal ["orders", "users"], result.tables.sort
   end
 
   def test_recursive_cte
@@ -400,8 +365,7 @@ class TestIntegration < Minitest::Test
       )
       SELECT * FROM subordinates
     SQL
-    assert_includes result.tables, "employees"
-    refute_includes result.tables, "subordinates"
+    assert_equal ["employees"], result.tables
   end
 
   def test_extract_from_does_not_pollute_tables
@@ -465,8 +429,7 @@ class TestIntegration < Minitest::Test
     result = analyze(<<~SQL)
       SELECT * FROM (SELECT id FROM inner_t) sub, other_table
     SQL
-    assert_includes result.tables, "inner_t"
-    assert_includes result.tables, "other_table"
+    assert_equal ["inner_t", "other_table"], result.tables.sort
   end
 
   def test_table_valued_function_with_alias_columns
