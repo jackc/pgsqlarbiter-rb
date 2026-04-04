@@ -21,7 +21,7 @@ module Pgsqlarbiter
     # 4. Walk all tokens to extract table and function references
     #
     # @param sql [String] the SQL query to analyze
-    # @return [Result] analysis result with statement_type, tables, and functions
+    # @return [Analysis] analysis result with statement_type, tables, and functions
     # @raise [ParseError] if the SQL is empty or cannot be parsed
     # @raise [MultipleStatementsError] if the SQL contains more than one statement
     # @raise [DisallowedStatementError] if the statement type is not SELECT, INSERT,
@@ -46,7 +46,7 @@ module Pgsqlarbiter
       @paren_depth = 0
       walk!
 
-      Result.new(
+      Analysis.new(
         statement_type: stmt_type,
         tables: @tables.to_a.sort,
         functions: @functions.to_a.sort

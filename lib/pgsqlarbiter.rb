@@ -4,7 +4,7 @@ require_relative "pgsqlarbiter/version"
 require_relative "pgsqlarbiter/error"
 require_relative "pgsqlarbiter/token"
 require_relative "pgsqlarbiter/keywords"
-require_relative "pgsqlarbiter/result"
+require_relative "pgsqlarbiter/analysis"
 require_relative "pgsqlarbiter/safe_functions"
 require_relative "pgsqlarbiter/lexer"
 require_relative "pgsqlarbiter/analyzer"
@@ -20,7 +20,7 @@ module Pgsqlarbiter
   # Analyze a SQL query and extract its statement type, referenced tables, and function calls.
   #
   # @param sql [String] the SQL query to analyze
-  # @return [Result] analysis result containing statement_type, tables, and functions
+  # @return [Analysis] analysis result containing statement_type, tables, and functions
   # @raise [ParseError] if the SQL cannot be parsed
   # @raise [MultipleStatementsError] if the SQL contains more than one statement
   # @raise [DisallowedStatementError] if the statement type is not a supported DML type
