@@ -13,24 +13,24 @@ module Pgsqlarbiter
     VALID_STATEMENT_TYPES = Set[:select, :insert, :update, :delete, :merge, :values].freeze
 
     # @return [Set<Symbol>] allowed statement types
-    attr_reader :statement_types
+    attr_reader :allowed_statement_types
     # @return [Set<String>] allowed table and view names
-    attr_reader :tables
+    attr_reader :allowed_tables
     # @return [Set<String>] allowed function names
-    attr_reader :functions
+    attr_reader :allowed_functions
 
     # Create a new Arbiter with the given whitelists.
     #
-    # @param statement_types [Array<Symbol>] allowed statement types. Valid values:
+    # @param allowed_statement_types [Array<Symbol>] allowed statement types. Valid values:
     #   +:select+, +:insert+, +:update+, +:delete+, +:merge+, +:values+
-    # @param tables [Array<String>] allowed table and view names
-    # @param functions [Array<String>, Set<String>] allowed function names
+    # @param allowed_tables [Array<String>] allowed table and view names
+    # @param allowed_functions [Array<String>, Set<String>] allowed function names
     #   (default: {Pgsqlarbiter::DEFAULT_QUERY_FUNCTIONS})
     # @raise [ArgumentError] if any statement type is not in {VALID_STATEMENT_TYPES}
-    def initialize(statement_types:, tables:, functions: Pgsqlarbiter::DEFAULT_QUERY_FUNCTIONS)
-      @statement_types = validate_statement_types(statement_types)
-      @tables = Set.new(tables).freeze
-      @functions = Set.new(functions).freeze
+    def initialize(allowed_statement_types:, allowed_tables:, allowed_functions: Pgsqlarbiter::DEFAULT_QUERY_FUNCTIONS)
+      @allowed_statement_types = validate_statement_types(allowed_statement_types)
+      @allowed_tables = Set.new(allowed_tables).freeze
+      @allowed_functions = Set.new(allowed_functions).freeze
     end
 
     # Judge a SQL query against this arbiter's rules, returning a {Verdict} that
@@ -44,9 +44,9 @@ module Pgsqlarbiter
     # @raise [DisallowedStatementError] if the statement type is not a supported DML type
     def judge(sql)
       result = Pgsqlarbiter.analyze(sql)
-      stmt_ok = @statement_types.include?(result.statement_type)
-      bad_tables = result.tables.reject { |t| @tables.include?(t) }.freeze
-      bad_functions = result.functions.reject { |f| @functions.include?(f) }.freeze
+      stmt_ok = @allowed_statement_types.include?(result.statement_type)
+      bad_tables = result.tables.reject { |t| @allowed_tables.include?(t) }.freeze
+      bad_functions = result.functions.reject { |f| @allowed_functions.include?(f) }.freeze
 
       Verdict.new(
         allowed: stmt_ok && bad_tables.empty? && bad_functions.empty?,

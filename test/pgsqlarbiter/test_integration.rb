@@ -247,46 +247,46 @@ class TestIntegration < Minitest::Test
   # ====================================================================
 
   def test_allowed_simple
-    assert Pgsqlarbiter.allow?("SELECT * FROM users", tables: ["users"], functions: [])
+    assert Pgsqlarbiter.allow?("SELECT * FROM users", allowed_tables: ["users"], allowed_functions: [])
   end
 
   def test_not_allowed_missing_table
-    refute Pgsqlarbiter.allow?("SELECT * FROM users", tables: ["other"], functions: [])
+    refute Pgsqlarbiter.allow?("SELECT * FROM users", allowed_tables: ["other"], allowed_functions: [])
   end
 
   def test_allowed_with_function
-    assert Pgsqlarbiter.allow?("SELECT count(*) FROM users", tables: ["users"], functions: ["count"])
+    assert Pgsqlarbiter.allow?("SELECT count(*) FROM users", allowed_tables: ["users"], allowed_functions: ["count"])
   end
 
   def test_not_allowed_missing_function
-    refute Pgsqlarbiter.allow?("SELECT count(*) FROM users", tables: ["users"], functions: [])
+    refute Pgsqlarbiter.allow?("SELECT count(*) FROM users", allowed_tables: ["users"], allowed_functions: [])
   end
 
   def test_allowed_complex_query
     assert Pgsqlarbiter.allow?(
       "SELECT u.name, count(*) FROM users u JOIN orders o ON u.id = o.user_id GROUP BY u.name",
-      tables: ["users", "orders"],
-      functions: ["count"]
+      allowed_tables: ["users", "orders"],
+      allowed_functions: ["count"]
     )
   end
 
   def test_not_allowed_extra_table
     refute Pgsqlarbiter.allow?(
       "SELECT * FROM users JOIN secrets ON users.id = secrets.user_id",
-      tables: ["users"],
-      functions: []
+      allowed_tables: ["users"],
+      allowed_functions: []
     )
   end
 
   def test_allowed_rejects_disallowed_statement
     assert_raises(Pgsqlarbiter::DisallowedStatementError) do
-      Pgsqlarbiter.allow?("DROP TABLE users", tables: ["users"], functions: [])
+      Pgsqlarbiter.allow?("DROP TABLE users", allowed_tables: ["users"], allowed_functions: [])
     end
   end
 
   def test_allowed_rejects_multiple_statements
     assert_raises(Pgsqlarbiter::MultipleStatementsError) do
-      Pgsqlarbiter.allow?("SELECT 1; SELECT 2", tables: [], functions: [])
+      Pgsqlarbiter.allow?("SELECT 1; SELECT 2", allowed_tables: [], allowed_functions: [])
     end
   end
 
@@ -481,16 +481,16 @@ class TestIntegration < Minitest::Test
   def test_xmltable_allowed
     assert Pgsqlarbiter.allow?(
       "SELECT * FROM xmltable('/rows/row' PASSING data COLUMNS id int, name text)",
-      tables: [],
-      functions: ["xmltable"]
+      allowed_tables: [],
+      allowed_functions: ["xmltable"]
     )
   end
 
   def test_json_table_allowed
     assert Pgsqlarbiter.allow?(
       "SELECT * FROM json_table(data, '$.items[*]' COLUMNS (id int, name text PATH '$.name'))",
-      tables: [],
-      functions: ["json_table"]
+      allowed_tables: [],
+      allowed_functions: ["json_table"]
     )
   end
 

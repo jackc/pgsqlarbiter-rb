@@ -35,18 +35,18 @@ module Pgsqlarbiter
   # checks with the same rules, prefer creating an {Arbiter} directly.
   #
   # @param sql [String] the SQL query to judge
-  # @param tables [Array<String>] allowed table and view names
-  # @param statement_types [Array<Symbol>] allowed statement types
+  # @param allowed_tables [Array<String>] allowed table and view names
+  # @param allowed_statement_types [Array<Symbol>] allowed statement types
   #   (default: +[:select]+). Valid types: +:select+, +:insert+, +:update+,
   #   +:delete+, +:merge+, +:values+
-  # @param functions [Set<String>, Array<String>] allowed function names
+  # @param allowed_functions [Set<String>, Array<String>] allowed function names
   #   (default: {DEFAULT_QUERY_FUNCTIONS})
   # @return [Verdict] detailed result with {Verdict#allowed?}, individual check
   #   results, and {Verdict#reasons}
   # @raise [MultipleStatementsError] if the SQL contains more than one statement
   # @raise [DisallowedStatementError] if the statement type is not a supported DML type
-  def self.judge(sql, tables:, statement_types: [:select], functions: DEFAULT_QUERY_FUNCTIONS)
-    Arbiter.new(statement_types: statement_types, tables: tables, functions: functions).judge(sql)
+  def self.judge(sql, allowed_tables:, allowed_statement_types: [:select], allowed_functions: DEFAULT_QUERY_FUNCTIONS)
+    Arbiter.new(allowed_statement_types: allowed_statement_types, allowed_tables: allowed_tables, allowed_functions: allowed_functions).judge(sql)
   end
 
   # Check whether a SQL query is allowed under the given restrictions.
@@ -55,16 +55,16 @@ module Pgsqlarbiter
   # checks with the same rules, prefer creating an {Arbiter} directly.
   #
   # @param sql [String] the SQL query to check
-  # @param tables [Array<String>] allowed table and view names
-  # @param statement_types [Array<Symbol>] allowed statement types
+  # @param allowed_tables [Array<String>] allowed table and view names
+  # @param allowed_statement_types [Array<Symbol>] allowed statement types
   #   (default: +[:select]+). Valid types: +:select+, +:insert+, +:update+,
   #   +:delete+, +:merge+, +:values+
-  # @param functions [Set<String>, Array<String>] allowed function names
+  # @param allowed_functions [Set<String>, Array<String>] allowed function names
   #   (default: {DEFAULT_QUERY_FUNCTIONS})
   # @return [Boolean] +true+ if the query is allowed, +false+ otherwise
   # @raise [MultipleStatementsError] if the SQL contains more than one statement
   # @raise [DisallowedStatementError] if the statement type is not a supported DML type
-  def self.allow?(sql, tables:, statement_types: [:select], functions: DEFAULT_QUERY_FUNCTIONS)
-    Arbiter.new(statement_types: statement_types, tables: tables, functions: functions).allow?(sql)
+  def self.allow?(sql, allowed_tables:, allowed_statement_types: [:select], allowed_functions: DEFAULT_QUERY_FUNCTIONS)
+    Arbiter.new(allowed_statement_types: allowed_statement_types, allowed_tables: allowed_tables, allowed_functions: allowed_functions).allow?(sql)
   end
 end

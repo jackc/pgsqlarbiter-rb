@@ -9,9 +9,9 @@ class TestVerdict < Minitest::Test
 
   def test_allowed_query_returns_allowed_verdict
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"],
-      functions: ["count"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"],
+      allowed_functions: ["count"]
     )
     verdict = arbiter.judge("SELECT count(*) FROM users")
     assert verdict.allowed?
@@ -28,8 +28,8 @@ class TestVerdict < Minitest::Test
 
   def test_denied_statement_type
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"]
     )
     verdict = arbiter.judge("INSERT INTO users (name) VALUES ('alice')")
     refute verdict.allowed?
@@ -44,8 +44,8 @@ class TestVerdict < Minitest::Test
 
   def test_disallowed_table
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"]
     )
     verdict = arbiter.judge("SELECT * FROM orders")
     refute verdict.allowed?
@@ -56,8 +56,8 @@ class TestVerdict < Minitest::Test
 
   def test_multiple_disallowed_tables
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"]
     )
     verdict = arbiter.judge("SELECT * FROM orders JOIN products ON orders.product_id = products.id")
     refute verdict.allowed?
@@ -66,8 +66,8 @@ class TestVerdict < Minitest::Test
 
   def test_mix_of_allowed_and_disallowed_tables
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"]
     )
     verdict = arbiter.judge("SELECT * FROM users JOIN orders ON users.id = orders.user_id")
     refute verdict.allowed?
@@ -80,9 +80,9 @@ class TestVerdict < Minitest::Test
 
   def test_disallowed_function
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"],
-      functions: ["sum"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"],
+      allowed_functions: ["sum"]
     )
     verdict = arbiter.judge("SELECT count(*) FROM users")
     refute verdict.allowed?
@@ -97,9 +97,9 @@ class TestVerdict < Minitest::Test
 
   def test_all_three_violations
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"],
-      functions: ["count"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"],
+      allowed_functions: ["count"]
     )
     verdict = arbiter.judge("INSERT INTO orders (total) VALUES (pg_sleep(1))")
     refute verdict.allowed?
@@ -115,8 +115,8 @@ class TestVerdict < Minitest::Test
 
   def test_reasons_empty_when_allowed
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"]
     )
     verdict = arbiter.judge("SELECT * FROM users")
     assert_equal [], verdict.reasons
@@ -124,8 +124,8 @@ class TestVerdict < Minitest::Test
 
   def test_reasons_frozen
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"]
     )
     verdict = arbiter.judge("SELECT * FROM orders")
     assert verdict.reasons.frozen?
@@ -137,8 +137,8 @@ class TestVerdict < Minitest::Test
 
   def test_ddl_raises_disallowed_statement_error
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"]
     )
     assert_raises(Pgsqlarbiter::DisallowedStatementError) do
       arbiter.judge("DROP TABLE users")
@@ -147,8 +147,8 @@ class TestVerdict < Minitest::Test
 
   def test_multiple_statements_raises
     arbiter = Pgsqlarbiter::Arbiter.new(
-      statement_types: [:select],
-      tables: ["users"]
+      allowed_statement_types: [:select],
+      allowed_tables: ["users"]
     )
     assert_raises(Pgsqlarbiter::MultipleStatementsError) do
       arbiter.judge("SELECT 1; SELECT 2")
@@ -160,12 +160,12 @@ class TestVerdict < Minitest::Test
   # ====================================================================
 
   def test_module_judge_allowed
-    verdict = Pgsqlarbiter.judge("SELECT * FROM users", tables: ["users"])
+    verdict = Pgsqlarbiter.judge("SELECT * FROM users", allowed_tables: ["users"])
     assert verdict.allowed?
   end
 
   def test_module_judge_denied
-    verdict = Pgsqlarbiter.judge("SELECT * FROM secrets", tables: ["users"])
+    verdict = Pgsqlarbiter.judge("SELECT * FROM secrets", allowed_tables: ["users"])
     refute verdict.allowed?
     assert_equal ["secrets"], verdict.disallowed_tables
   end
@@ -173,8 +173,8 @@ class TestVerdict < Minitest::Test
   def test_module_judge_with_statement_types
     verdict = Pgsqlarbiter.judge(
       "INSERT INTO users (name) VALUES ('alice')",
-      tables: ["users"],
-      statement_types: [:select, :insert]
+      allowed_tables: ["users"],
+      allowed_statement_types: [:select, :insert]
     )
     assert verdict.allowed?
   end
@@ -182,8 +182,8 @@ class TestVerdict < Minitest::Test
   def test_module_judge_with_custom_functions
     verdict = Pgsqlarbiter.judge(
       "SELECT my_func(id) FROM users",
-      tables: ["users"],
-      functions: ["my_func"]
+      allowed_tables: ["users"],
+      allowed_functions: ["my_func"]
     )
     assert verdict.allowed?
   end
