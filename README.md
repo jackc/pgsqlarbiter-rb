@@ -1,5 +1,7 @@
 # pgsqlarbiter
 
+[![CI](https://github.com/jackc/pgsqlarbiter-rb/actions/workflows/ci.yml/badge.svg)](https://github.com/jackc/pgsqlarbiter-rb/actions/workflows/ci.yml)
+
 pgsqlarbiter is SQL query permission system for PostgreSQL. It is designed for granting semi-trusted users access to a PostgreSQL database. PostgreSQL's permission system is a necessary foundation, but further restrictions are often required. pgsqlarbiter adds the following:
 
 * Only single statement DML (SELECT, INSERT, UPDATE, DELETE, MERGE, or VALUES) queries are allowed.
@@ -192,3 +194,7 @@ pgsqlarbiter is not sufficient security on its own. It is designed to be an addi
 * Operators and type casts are implemented via functions. These pass through without filtering.
 * Table names are extracted exactly as written. Schema-qualified references like `public.users` are distinct from `users`. Whitelists must include the exact form used in queries.
 * Identifiers containing dots are rejected.
+
+## Other Implementations
+
+* [pgsqlarbiter-go](https://github.com/jackc/pgsqlarbiter-go) - Go
