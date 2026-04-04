@@ -3,9 +3,20 @@
 require "strscan"
 
 module Pgsqlarbiter
+  # SQL lexer that converts a query string into an array of {Token} objects.
+  #
+  # Handles all PostgreSQL token types including keywords, identifiers (plain and
+  # double-quoted), strings (single-quoted, dollar-quoted, and prefixed), numbers,
+  # parameters, operators, and punctuation.
   class Lexer
     include TokenType
 
+    # Tokenize a SQL query string.
+    #
+    # @param sql [String] the SQL string to tokenize
+    # @return [Array<Token>] list of tokens ending with an EOF token
+    # @raise [LexError] on invalid syntax such as unexpected characters or unterminated
+    #   strings/comments
     def tokenize(sql)
       @scanner = StringScanner.new(sql)
       @tokens = []

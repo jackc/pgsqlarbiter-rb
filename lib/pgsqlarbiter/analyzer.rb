@@ -3,12 +3,29 @@
 require "set"
 
 module Pgsqlarbiter
+  # SQL query analyzer that lexes and walks a SQL string to extract its statement type,
+  # referenced tables, and function calls. Uses a hand-written lexer and single-pass
+  # token walker rather than a full parse tree.
   class Analyzer
     include TokenType
 
     JOIN_PREFIXES = Set["INNER", "LEFT", "RIGHT", "FULL", "CROSS", "NATURAL"].freeze
     FUNCTIONS_WITH_FROM_SYNTAX = Set["EXTRACT", "TRIM", "SUBSTRING"].freeze
 
+    # Analyze a SQL query string.
+    #
+    # The analysis proceeds in four phases:
+    # 1. Reject multiple statements
+    # 2. Determine the statement type
+    # 3. Pre-collect CTE names (so they are not treated as table references)
+    # 4. Walk all tokens to extract table and function references
+    #
+    # @param sql [String] the SQL query to analyze
+    # @return [Result] analysis result with statement_type, tables, and functions
+    # @raise [ParseError] if the SQL is empty or cannot be parsed
+    # @raise [MultipleStatementsError] if the SQL contains more than one statement
+    # @raise [DisallowedStatementError] if the statement type is not SELECT, INSERT,
+    #   UPDATE, DELETE, MERGE, or VALUES
     def analyze(sql)
       @tokens = Lexer.new.tokenize(sql)
       @pos = 0
