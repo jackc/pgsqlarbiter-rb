@@ -236,8 +236,7 @@ module Pgsqlarbiter
     def dispatch_token!
       case current.type
       when KEYWORD  then handle_keyword!
-      when IDENT    then maybe_extract_function_call!
-      when QUOTED_IDENT then maybe_extract_quoted_function_call!
+      when IDENT, QUOTED_IDENT then maybe_extract_function_call!
       when LPAREN   then @paren_depth += 1; advance
       when RPAREN   then handle_rparen!
       else advance
@@ -336,25 +335,6 @@ module Pgsqlarbiter
       elsif peek&.type == DOT
         name1 = identifier_value(current)
         advance # past ident
-        advance # past dot
-        if (ident_or_quoted? || current.type == KEYWORD) && peek&.type == LPAREN
-          name2 = identifier_value(current)
-          @functions << "#{name1}.#{name2}"
-          advance
-        end
-      else
-        advance
-      end
-    end
-
-    def maybe_extract_quoted_function_call!
-      if peek&.type == LPAREN
-        name = identifier_value(current)
-        @functions << name
-        advance
-      elsif peek&.type == DOT
-        name1 = identifier_value(current)
-        advance # past quoted ident
         advance # past dot
         if (ident_or_quoted? || current.type == KEYWORD) && peek&.type == LPAREN
           name2 = identifier_value(current)
