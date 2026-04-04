@@ -8,8 +8,12 @@ Gem::Specification.new do |spec|
   spec.authors = ["pgsqlarbiter contributors"]
   spec.summary = "SQL query permission system for PostgreSQL"
   spec.description = "Restricts SQL queries to single-statement DML with whitelisted tables, views, and functions."
+  spec.homepage = "https://github.com/pgsqlarbiter/pgsqlarbiter-rb"
   spec.required_ruby_version = ">= 3.2"
   spec.license = "MIT"
+
+  spec.metadata["homepage_uri"] = spec.homepage
+  spec.metadata["source_code_uri"] = spec.homepage
 
   spec.files = Dir["lib/**/*.rb"]
   spec.require_paths = ["lib"]
