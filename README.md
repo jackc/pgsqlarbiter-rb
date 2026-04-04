@@ -71,6 +71,39 @@ arbiter.allow?("DROP TABLE users")                    # raises DisallowedStateme
 arbiter.allow?("SELECT * FROM pg_catalog.pg_tables")  # => false
 ```
 
+### Detailed denial reasons with `judge`
+
+When you need to know *why* a query was denied, use `judge` instead of `allow?`. It returns a
+`Verdict` with the specific checks that failed:
+
+```ruby
+arbiter = Pgsqlarbiter::Arbiter.new(
+  statement_types: [:select],
+  tables: ["users"],
+  functions: ["count"]
+)
+
+verdict = arbiter.judge("INSERT INTO orders SELECT count(*), pg_sleep(1) FROM secrets")
+verdict.allowed?                # => false
+verdict.statement_type          # => :insert
+verdict.statement_type_allowed? # => false
+verdict.disallowed_tables       # => ["orders", "secrets"]
+verdict.disallowed_functions    # => ["pg_sleep"]
+verdict.reasons
+# => ["statement type :insert is not allowed",
+#     "table \"orders\" is not allowed",
+#     "table \"secrets\" is not allowed",
+#     "function \"pg_sleep\" is not allowed"]
+```
+
+A one-off convenience method is also available:
+
+```ruby
+verdict = Pgsqlarbiter.judge("SELECT * FROM secrets", tables: ["users"])
+verdict.allowed?           # => false
+verdict.disallowed_tables  # => ["secrets"]
+```
+
 ### Analyzing queries with `Pgsqlarbiter.analyze`
 
 Use `analyze` to inspect a query without checking permissions:

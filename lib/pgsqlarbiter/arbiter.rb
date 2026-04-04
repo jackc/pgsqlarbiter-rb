@@ -33,6 +33,30 @@ module Pgsqlarbiter
       @functions = Set.new(functions).freeze
     end
 
+    # Judge a SQL query against this arbiter's rules, returning a {Verdict} that
+    # explains which checks passed or failed.
+    #
+    # @param sql [String] the SQL query to judge
+    # @return [Verdict] detailed result with {Verdict#allowed?}, individual check
+    #   results, and {Verdict#reasons}
+    # @raise [ParseError] if the SQL cannot be parsed
+    # @raise [MultipleStatementsError] if the SQL contains more than one statement
+    # @raise [DisallowedStatementError] if the statement type is not a supported DML type
+    def judge(sql)
+      result = Pgsqlarbiter.analyze(sql)
+      stmt_ok = @statement_types.include?(result.statement_type)
+      bad_tables = result.tables.reject { |t| @tables.include?(t) }.freeze
+      bad_functions = result.functions.reject { |f| @functions.include?(f) }.freeze
+
+      Verdict.new(
+        allowed: stmt_ok && bad_tables.empty? && bad_functions.empty?,
+        statement_type_allowed: stmt_ok,
+        statement_type: result.statement_type,
+        disallowed_tables: bad_tables,
+        disallowed_functions: bad_functions
+      )
+    end
+
     # Check whether a SQL query is allowed under this arbiter's rules.
     #
     # @param sql [String] the SQL query to check
@@ -42,10 +66,7 @@ module Pgsqlarbiter
     # @raise [MultipleStatementsError] if the SQL contains more than one statement
     # @raise [DisallowedStatementError] if the statement type is not a supported DML type
     def allow?(sql)
-      result = Pgsqlarbiter.analyze(sql)
-      @statement_types.include?(result.statement_type) &&
-        result.tables.all? { |t| @tables.include?(t) } &&
-        result.functions.all? { |f| @functions.include?(f) }
+      judge(sql).allowed?
     end
 
     private
