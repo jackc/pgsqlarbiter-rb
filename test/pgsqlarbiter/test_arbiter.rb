@@ -27,9 +27,9 @@ class TestArbiter < Minitest::Test
     assert_equal Set[], arbiter.statement_types
   end
 
-  def test_functions_default_to_safe_functions
+  def test_functions_default_to_default_query_functions
     arbiter = Pgsqlarbiter::Arbiter.new(statement_types: [:select], tables: ["users"])
-    assert_equal Pgsqlarbiter::SAFE_FUNCTIONS, arbiter.functions
+    assert_equal Pgsqlarbiter::DEFAULT_QUERY_FUNCTIONS, arbiter.functions
   end
 
   def test_custom_functions

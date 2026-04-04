@@ -25,9 +25,9 @@ module Pgsqlarbiter
     #   +:select+, +:insert+, +:update+, +:delete+, +:merge+, +:values+
     # @param tables [Array<String>] allowed table and view names
     # @param functions [Array<String>, Set<String>] allowed function names
-    #   (default: {Pgsqlarbiter::SAFE_FUNCTIONS})
+    #   (default: {Pgsqlarbiter::DEFAULT_QUERY_FUNCTIONS})
     # @raise [ArgumentError] if any statement type is not in {VALID_STATEMENT_TYPES}
-    def initialize(statement_types:, tables:, functions: Pgsqlarbiter::SAFE_FUNCTIONS)
+    def initialize(statement_types:, tables:, functions: Pgsqlarbiter::DEFAULT_QUERY_FUNCTIONS)
       @statement_types = validate_statement_types(statement_types)
       @tables = Set.new(tables).freeze
       @functions = Set.new(functions).freeze

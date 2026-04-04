@@ -5,7 +5,7 @@ require_relative "pgsqlarbiter/error"
 require_relative "pgsqlarbiter/token"
 require_relative "pgsqlarbiter/keywords"
 require_relative "pgsqlarbiter/analysis"
-require_relative "pgsqlarbiter/safe_functions"
+require_relative "pgsqlarbiter/default_query_functions"
 require_relative "pgsqlarbiter/lexer"
 require_relative "pgsqlarbiter/analyzer"
 require_relative "pgsqlarbiter/verdict"
@@ -40,12 +40,12 @@ module Pgsqlarbiter
   #   (default: +[:select]+). Valid types: +:select+, +:insert+, +:update+,
   #   +:delete+, +:merge+, +:values+
   # @param functions [Set<String>, Array<String>] allowed function names
-  #   (default: {SAFE_FUNCTIONS})
+  #   (default: {DEFAULT_QUERY_FUNCTIONS})
   # @return [Verdict] detailed result with {Verdict#allowed?}, individual check
   #   results, and {Verdict#reasons}
   # @raise [MultipleStatementsError] if the SQL contains more than one statement
   # @raise [DisallowedStatementError] if the statement type is not a supported DML type
-  def self.judge(sql, tables:, statement_types: [:select], functions: SAFE_FUNCTIONS)
+  def self.judge(sql, tables:, statement_types: [:select], functions: DEFAULT_QUERY_FUNCTIONS)
     Arbiter.new(statement_types: statement_types, tables: tables, functions: functions).judge(sql)
   end
 
@@ -60,11 +60,11 @@ module Pgsqlarbiter
   #   (default: +[:select]+). Valid types: +:select+, +:insert+, +:update+,
   #   +:delete+, +:merge+, +:values+
   # @param functions [Set<String>, Array<String>] allowed function names
-  #   (default: {SAFE_FUNCTIONS})
+  #   (default: {DEFAULT_QUERY_FUNCTIONS})
   # @return [Boolean] +true+ if the query is allowed, +false+ otherwise
   # @raise [MultipleStatementsError] if the SQL contains more than one statement
   # @raise [DisallowedStatementError] if the statement type is not a supported DML type
-  def self.allow?(sql, tables:, statement_types: [:select], functions: SAFE_FUNCTIONS)
+  def self.allow?(sql, tables:, statement_types: [:select], functions: DEFAULT_QUERY_FUNCTIONS)
     Arbiter.new(statement_types: statement_types, tables: tables, functions: functions).allow?(sql)
   end
 end

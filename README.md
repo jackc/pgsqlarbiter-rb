@@ -120,14 +120,14 @@ result.functions       # => ["count"]
 
 ### Custom function whitelists
 
-By default, `SAFE_FUNCTIONS` (a curated set of ~180 common PostgreSQL functions) is used.
+By default, `DEFAULT_QUERY_FUNCTIONS` (a curated set of ~180 common PostgreSQL functions) is used.
 You can provide your own:
 
 ```ruby
 arbiter = Pgsqlarbiter::Arbiter.new(
   statement_types: [:select],
   tables: ["events"],
-  functions: Pgsqlarbiter::SAFE_FUNCTIONS | Set["my_custom_func"]
+  functions: Pgsqlarbiter::DEFAULT_QUERY_FUNCTIONS | Set["my_custom_func"]
 )
 
 arbiter.allow?("SELECT my_custom_func(id) FROM events")  # => true

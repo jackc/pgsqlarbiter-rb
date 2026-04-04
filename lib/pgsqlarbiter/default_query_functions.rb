@@ -3,12 +3,12 @@
 require "set"
 
 module Pgsqlarbiter
-  # A whitelist of PostgreSQL functions safe for use in queries. This includes functions that could
+  # Default set of PostgreSQL functions permitted in queries. This includes functions that could
   # cause resource exhaustion (e.g. generate_series) — resource limits should be enforced elsewhere.
   #
   # Excluded: functions not used by regular queries such as pg_sleep, set_config, lo_*, pg_advisory_lock,
   # pg_notify, sequence functions, and system information functions.
-  SAFE_FUNCTIONS = Set[
+  DEFAULT_QUERY_FUNCTIONS = Set[
     # -- Aggregate functions --
     "array_agg", "avg", "bit_and", "bit_or", "bit_xor",
     "bool_and", "bool_or", "count", "every",
