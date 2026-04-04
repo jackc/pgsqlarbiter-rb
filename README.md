@@ -5,7 +5,7 @@ pgsqlarbiter is SQL query permission system for PostgreSQL. It is designed for g
 * Only single statement DML (SELECT, INSERT, UPDATE, DELETE, MERGE, or VALUES) queries are allowed.
 * All referenced tables, views, and named functions must be whitelisted.
 
-These additional restrictions close many unexpected difficult or impossible to restrict with the PostgreSQL permission system such as:
+These additional restrictions close gaps that are difficult or impossible to address with the PostgreSQL permission system alone, such as:
 
 * Exposure of system information via `information_schema` or `pg_catalog`.
 * Exposure of system information via `SHOW`.
