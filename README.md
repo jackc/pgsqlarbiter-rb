@@ -190,4 +190,5 @@ pgsqlarbiter is not sufficient security on its own. It is designed to be an addi
 
 * pgsqlarbiter uses its own SQL parser. A potential weakness is a mismatch between the pgsqlarbiter and PostgreSQL SQL parsers.
 * Operators and type casts are implemented via functions. These pass through without filtering.
+* Table names are extracted exactly as written. Schema-qualified references like `public.users` are distinct from `users`. Whitelists must include the exact form used in queries.
 * Identifiers containing dots are rejected.
