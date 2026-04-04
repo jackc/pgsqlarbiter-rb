@@ -42,7 +42,7 @@ module Pgsqlarbiter
       "ALL", "DISTINCT", "LATERAL", "ONLY", "TABLE",
       "RETURNING", "RECURSIVE", "COLUMNS",
       "NOT", "MATERIALIZED",
-      "MATCHED", "WHEN", "THEN", "BY",
+      "MATCHED", "WHEN", "THEN", "BY", "CONFLICT",
       "AND", "OR", "IS", "IN", "BETWEEN",
       "LIKE", "ILIKE", "SIMILAR",
       "CASE", "CAST", "END", "ELSE",
