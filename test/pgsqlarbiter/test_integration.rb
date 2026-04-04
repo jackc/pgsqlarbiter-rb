@@ -60,6 +60,20 @@ class TestIntegration < Minitest::Test
     assert_equal :delete, result.statement_type
   end
 
+  def test_merge_with_table_source
+    result = analyze(<<~SQL)
+      MERGE INTO target t
+      USING source s ON t.id = s.id
+      WHEN MATCHED THEN UPDATE SET val = s.val
+      WHEN NOT MATCHED THEN INSERT (id, val) VALUES (s.id, s.val)
+    SQL
+    assert_includes result.tables, "target"
+    assert_includes result.tables, "source"
+    refute_includes result.tables, "t"
+    refute_includes result.tables, "s"
+    assert_equal :merge, result.statement_type
+  end
+
   def test_merge_with_subquery_source
     result = analyze(<<~SQL)
       MERGE INTO inventory t
