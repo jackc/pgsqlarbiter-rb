@@ -54,13 +54,12 @@ module Pgsqlarbiter
     # holds the things its FROM clause (and target) make visible by name.
     #
     # * from_depth: how many FROM items of this level the walk is inside.
-    # * on_clause: while the walk is in a join's ON condition, the index in
-    #   entries where that join's members start, replaced by the names of the
-    #   members once they are needed (see from_scope).
-    # * in_parent_from: what from_scope was in the parent where this level
-    #   starts: nil, or the names of the parent's FROM items that are
-    #   certainly visible from inside this level.
-    Level = Struct.new(:parent, :entries, :target, :outputs, :index, :from_depth, :on_clause, :in_parent_from)
+    # * on_clause: while the walk is in a join's ON condition, the range of
+    #   positions in entries that holds that join's members.
+    # * parent_scope: what from_scope was in the parent where this level
+    #   starts: nil, or the range of the parent's FROM items that may be
+    #   visible from inside this level (see visible_in?).
+    Level = Struct.new(:parent, :entries, :target, :outputs, :index, :from_depth, :on_clause, :parent_scope)
 
     # Something a qualified name can refer to: a table, subquery, CTE, function
     # or join in FROM, or the target of a data-modifying statement.
@@ -74,8 +73,11 @@ module Pgsqlarbiter
     # * source: computes columns once the subquery it comes from has been walked.
     # * members: the tables underneath a join alias.
     # * pseudo: OLD, NEW and EXCLUDED.
-    # * hidden: inside a join that has an alias, so not part of "*".
-    Entry = Struct.new(:name, :table, :columns, :source, :members, :pseudo, :hidden)
+    # * hidden: inside a join that has an alias, so not part of "*": the
+    #   position in its level's entries of the innermost such alias.
+    # * position: its place in its level's entries, known once the level is
+    #   indexed.
+    Entry = Struct.new(:name, :table, :columns, :source, :members, :pseudo, :hidden, :position)
 
     Cte = Struct.new(:core, :columns)
 
@@ -357,28 +359,27 @@ module Pgsqlarbiter
       Level.new(@level, [], nil, outputs, nil, 0, nil, from_scope)
     end
 
-    NOTHING_VISIBLE = Set.new.freeze
+    NOTHING_VISIBLE = (0...0).freeze
 
     # Which FROM items of the current level are certainly visible at this point
-    # of the walk. nil outside the level's FROM clause, where all of them are.
-    # Inside it PostgreSQL hides items written later and, outside LATERAL,
-    # items written earlier, so none are, except in a join's ON condition,
-    # which always sees both sides of its join: there, the names of the join's
-    # members that no inner join alias hides.
+    # of the walk, as a range of positions in the level's entries. nil outside
+    # the level's FROM clause, where all of them are. Inside it PostgreSQL
+    # hides items written later and, outside LATERAL, items written earlier,
+    # so none are, except in a join's ON condition, which always sees both
+    # sides of its join: there, the members of the join.
     def from_scope
       level = @level
       return nil unless level && level.from_depth > 0
 
-      case (scope = level.on_clause)
-      when nil then NOTHING_VISIBLE
-      when Set then scope
-      else
-        # Taken now, while the walk is in the ON condition: a join alias
-        # written around this join hides its members only outside it.
-        members = level.entries[scope..]
-        spend(members.length)
-        level.on_clause = members.filter_map { |member| member.name if !member.hidden && member.name.is_a?(String) }.to_set
-      end
+      level.on_clause || NOTHING_VISIBLE
+    end
+
+    # Whether an entry is a member of the join whose ON condition scope stands
+    # for, and no join alias inside that join hides it. An alias written
+    # around the join comes after its members, and hides them only outside it.
+    def visible_in?(scope, entry)
+      hidden = entry.hidden
+      scope.cover?(entry.position) && !(hidden && hidden < scope.end) && !entry.pseudo
     end
 
     def current_level
@@ -781,7 +782,7 @@ module Pgsqlarbiter
       spend(members.length)
       visible = members.reject(&:hidden)
       tables = members.select(&:table)
-      members.each { |member| member.hidden = true }
+      members.each { |member| member.hidden ||= level.entries.length }
       entry = Entry.new(name, nil, list, nil, tables)
       if list
         tables.each { |member| charge_whole(member) }
@@ -821,9 +822,13 @@ module Pgsqlarbiter
       if on
         level = current_level
         start = level.entries.length
-        @stack << -> { level.on_clause = nil }
+        outer = nil
+        @stack << -> { level.on_clause = outer }
         @stack << qual
-        @stack << -> { level.on_clause = start }
+        @stack << lambda do
+          outer = level.on_clause
+          level.on_clause = (start...level.entries.length)
+        end
         visit(kids[0...-1])
       else
         visit_children(node)
@@ -942,7 +947,7 @@ module Pgsqlarbiter
       @refs << [current_level, names, star, @alias_refs.key?(node), from_scope]
     end
 
-    def resolve_ref(level, names, star, alias_ok, in_from)
+    def resolve_ref(level, names, star, alias_ok, scope)
       return resolve_bare_name(level, names[0], alias_ok) if names.length == 1 && !star
 
       # [catalog.][schema.]qualifier.column, or [catalog.][schema.]qualifier.*
@@ -950,7 +955,7 @@ module Pgsqlarbiter
       # A schema-qualified qualifier matches only some of the FROM items of
       # its name, so it is never taken to stop at the nearest.
       nearest = names.length == (star ? 1 : 2)
-      found = candidates(level, qualifier, nearest, in_from)
+      found = candidates(level, qualifier, nearest, scope)
       if found.empty?
         raise UnresolvedNameError, "#{names.join(".").inspect} refers to #{qualifier.inspect}, which is not in FROM"
       end
@@ -1008,24 +1013,35 @@ module Pgsqlarbiter
     # an entry that is certainly named qualifier and certainly visible from
     # the reference. Entries of uncertain name at that level or nearer stay
     # candidates. Inside a level's FROM clause, where PostgreSQL hides later
-    # and non-LATERAL items, in_from names the items the reference certainly
-    # sees (the members of the join whose ON condition it is in), and the walk
-    # goes on past the level unless qualifier is one of them. It also goes on
-    # past entries that are hidden by a join alias or are OLD, NEW or
-    # EXCLUDED, which are not visible everywhere in their level.
-    def candidates(level, qualifier, nearest, in_from)
+    # and non-LATERAL items, scope is the range of items the reference
+    # certainly sees (the members of the join whose ON condition it is in).
+    # If qualifier names one of them the walk stops there, and nothing else of
+    # that name at the level is a candidate; otherwise it goes on past the
+    # level. It also goes on past entries that are hidden by a join alias or
+    # are OLD, NEW or EXCLUDED, which are not visible everywhere in their
+    # level.
+    def candidates(level, qualifier, nearest, scope)
       found = []
       while level
         index = index_of(level)
         entries = index.names[qualifier]
+        spend(1 + (entries ? entries.length : 0))
+        stop = false
+        if nearest && entries
+          if scope
+            seen = entries.select { |entry| visible_in?(scope, entry) }
+            entries = seen unless seen.empty?
+            stop = !seen.empty?
+          else
+            stop = entries.any? { |entry| !entry.hidden && !entry.pseudo }
+          end
+        end
         found.concat(entries) if entries
         found.concat(index.wildcards)
-        spend(1 + found.length)
-        if nearest && entries
-          return found if in_from ? in_from.include?(qualifier) : entries.any? { |entry| !entry.hidden && !entry.pseudo }
-        end
+        spend(found.length)
+        return found if stop
 
-        in_from = level.in_parent_from
+        scope = level.parent_scope
         level = level.parent
       end
       found
@@ -1038,7 +1054,8 @@ module Pgsqlarbiter
       index = level.index = LevelIndex.new(false, {}, {}, [])
       seen = {}
       spend(level.entries.length)
-      level.entries.each do |entry|
+      level.entries.each_with_index do |entry, position|
+        entry.position = position
         name = entry.name
         if name.nil?
           index.wildcards << entry

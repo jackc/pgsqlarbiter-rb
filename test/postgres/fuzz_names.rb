@@ -198,7 +198,8 @@ def focused
     third = pick(TABLES)
     inner = pick(["#{other} t JOIN #{third} o", "#{third} o JOIN #{other} t", "#{other} t, #{third} p JOIN #{third} o",
       "(#{other} t JOIN #{third} p ON true) j JOIN #{third} o", "#{third} o JOIN (#{other} t JOIN #{third} p ON true)",
-      "#{third} o JOIN #{third} p ON true JOIN #{other} t"])
+      "#{third} o JOIN #{third} p ON true JOIN #{other} t", "(#{third} t JOIN #{third} p ON true) j JOIN #{other} t",
+      "(#{other} t JOIN #{third} p ON true) t JOIN #{third} o", "#{other} t JOIN #{third} p USING (id) AS j JOIN #{third} o"])
     name = pick(COLUMNS_OF[other] + COLUMNS_OF[table] + [pick(NAMES)])
     condition = chance(3) ? "EXISTS (SELECT t.#{name})" : "t.#{name} IS NOT NULL"
     subquery = "SELECT 1 FROM #{inner} ON #{condition}"

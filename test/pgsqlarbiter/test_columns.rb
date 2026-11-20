@@ -214,6 +214,47 @@ class TestColumns < Minitest::Test
       functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u JOIN LATERAL (SELECT u.total) x ON true)")
   end
 
+  def test_on_clause_ignores_what_it_cannot_see_at_its_level
+    # A table of the same name hidden by an inner join's alias.
+    sql = "SELECT 1 FROM (orders u JOIN orders p ON true) j JOIN users u ON u.name = 'a'"
+    assert_empty functions(sql)
+    assert_equal ["users.name"], columns(sql)
+    # A join alias that reuses the name of a member it hides.
+    sql = "SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (orders u JOIN users p ON true) u JOIN orders q ON u.total = u.name)"
+    assert_empty functions(sql)
+    assert_equal ["orders.total", "users.name"], columns(sql)
+    # Inside that join, the name still means the member.
+    assert_equal ["name"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (orders u JOIN users p ON u.name = 'a') u)")
+  end
+
+  def test_on_clause_sees_members_under_a_using_alias
+    # USING (...) AS j names the join without hiding its members.
+    sql = "SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u JOIN orders p USING (id) AS j JOIN orders q ON u.total = j.id)"
+    assert_empty functions(sql)
+    assert_equal ["orders.id", "orders.total"], columns(sql)
+  end
+
+  def test_on_clause_of_a_chain_sees_every_join_before_it
+    assert_empty functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u JOIN orders p ON true JOIN orders q ON u.total = 1)")
+    # After an inner ON condition ends, the outer one sees its own join again.
+    assert_empty functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u JOIN (orders p JOIN orders q ON p.id = q.id) ON u.total = p.id)")
+  end
+
+  def test_on_clause_in_data_modifying_statements
+    assert_empty functions("UPDATE orders SET total = 1 FROM orders u JOIN orders p ON u.total = p.id")
+    assert_equal ["orders.id", "orders.total"],
+      columns("UPDATE orders SET total = 1 FROM orders u JOIN orders p ON u.total = p.id")
+    assert_empty functions("DELETE FROM users USING orders u JOIN orders p ON u.total = p.id")
+    assert_empty functions("MERGE INTO orders t USING (orders u JOIN orders p ON u.total = 1) ON t.id = u.id WHEN MATCHED THEN DELETE")
+    assert_empty functions("MERGE INTO orders t USING orders u JOIN orders p ON u.total = 1 ON t.id = u.id WHEN MATCHED THEN DELETE")
+  end
+
+  def test_long_join_chain_stays_within_the_work_limit
+    joins = (1..4000).map { |i| " JOIN orders t#{i} ON t#{i}.id = t#{i - 1}.id" }.join
+    assert_equal ["orders.id"], columns("SELECT 1 FROM orders t0#{joins}")
+  end
+
   def test_cte_cannot_see_the_from_items_of_its_statement
     assert_empty functions("WITH x AS (SELECT u.total FROM orders u) SELECT u.name FROM users u, x")
     assert_equal ["orders.total", "users.name"],

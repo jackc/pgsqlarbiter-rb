@@ -676,3 +676,13 @@ SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS month) u, orders 
 SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM ((SELECT 1 AS month) u JOIN orders o ON true) j JOIN orders p ON u.month = 1)
 ----
 SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS month) u JOIN LATERAL (SELECT u.month) x ON true)
+----
+SELECT 1 FROM ((SELECT 1 AS month) u JOIN orders o ON true) j JOIN users u ON u.month = 1
+----
+SELECT 1 FROM (users u JOIN orders o ON true) j JOIN (SELECT 1 AS month) u ON u.month = 1
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM ((SELECT 1 AS month) u JOIN orders p ON true) u JOIN orders q ON u.month = 1)
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (users u JOIN orders p ON u.month = 1) u)
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS month, 1 AS id) u JOIN orders p USING (id) AS j JOIN orders q ON u.month = 1)
