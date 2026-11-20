@@ -662,3 +662,17 @@ SELECT (WITH x AS (SELECT u.month) SELECT 1 FROM x, (SELECT 1 AS month) u) FROM 
 ----
 @invalid
 WITH x AS (SELECT o.id FROM orders) SELECT 1 FROM users o, x
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u JOIN orders p ON p.id = u.user_id)
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM ((SELECT 1 AS month) u JOIN orders o ON u.month = 1) j)
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders o JOIN ((SELECT 1 AS month) u JOIN orders p ON true) ON u.month = o.id)
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS month) u JOIN orders o ON EXISTS (SELECT 1 FROM generate_series(1, u.month)))
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS month) u, orders o JOIN orders p ON u.month = 1)
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM ((SELECT 1 AS month) u JOIN orders o ON true) j JOIN orders p ON u.month = 1)
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS month) u JOIN LATERAL (SELECT u.month) x ON true)

@@ -416,8 +416,9 @@ pgsqlarbiter is not sufficient security on its own. It is designed to be an addi
     `u.uid` is known.
   * When the same alias is used at two nesting levels of one query, `alias.name` means the nearest
     one, as in PostgreSQL, except where PostgreSQL may skip that level's `FROM` items: inside a `FROM`
-    clause (a join's `ON` condition, a `LATERAL` or other subquery in `FROM`, a function's arguments),
-    for a table inside a join that has an alias, and for a schema-qualified name like `public.users.id`.
+    clause (a `LATERAL` or other subquery in `FROM`, a function's arguments, and a join's `ON`
+    condition unless the alias names a member of that join), for a table inside a join that has an
+    alias, and for a schema-qualified name like `public.users.id`.
     There `alias.name` must be a column of every item the alias names, at that level and every
     enclosing one. Distinct aliases avoid this.
   * Unquoted identifiers containing non-ASCII upper-case letters are refused because PostgreSQL folds

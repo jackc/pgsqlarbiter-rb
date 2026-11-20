@@ -183,6 +183,37 @@ class TestColumns < Minitest::Test
       functions("SELECT 1 FROM public.users WHERE EXISTS (SELECT 1 FROM users WHERE public.users.total = 1)")
   end
 
+  def test_on_clause_sees_the_members_of_its_join
+    assert_empty functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u JOIN orders p ON p.id = u.total)")
+    assert_equal ["orders.id", "orders.total"],
+      columns("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u JOIN orders p ON p.id = u.total)")
+    assert_empty functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders p JOIN orders u ON p.id = u.total)")
+    assert_empty functions("SELECT 1 FROM users u LEFT JOIN LATERAL (SELECT 1 FROM orders u JOIN orders p ON p.id = u.total) x ON true")
+    # Both sides of an outer join, including the members of an inner join
+    # without an alias.
+    assert_empty functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders o JOIN (orders u JOIN orders p ON true) ON o.id = u.total)")
+    # Inside a join with an alias, its members are still visible.
+    assert_empty functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (orders u JOIN orders p ON p.id = u.total) j)")
+    # A subquery in ON sees the same.
+    assert_empty functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u JOIN orders p ON EXISTS (SELECT 1 WHERE u.total = 1))")
+    assert_equal ["generate_series"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u JOIN orders p ON p.id IN (SELECT 1 FROM generate_series(1, u.total)))")
+  end
+
+  def test_on_clause_does_not_see_beyond_its_join
+    # FROM items outside the join, before or after it.
+    assert_equal ["total"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u, orders o JOIN orders p ON u.total = 1)")
+    assert_equal ["total"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders o JOIN orders p ON u.total = 1 JOIN orders u ON true)")
+    # Tables hidden by an inner join's alias.
+    assert_equal ["total"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (orders u JOIN orders p ON true) j JOIN orders q ON u.total = 1)")
+    # A subquery in FROM, even inside a join, is not part of its ON clause.
+    assert_equal ["total"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u JOIN LATERAL (SELECT u.total) x ON true)")
+  end
+
   def test_cte_cannot_see_the_from_items_of_its_statement
     assert_empty functions("WITH x AS (SELECT u.total FROM orders u) SELECT u.name FROM users u, x")
     assert_equal ["orders.total", "users.name"],

@@ -105,7 +105,7 @@ def from_item(depth, outer, ctes)
       case RNG.rand(6)
       when 0 then "#{left} NATURAL JOIN #{right}"
       when 1 then "#{left} CROSS JOIN #{right}"
-      else "#{left} #{pick(["JOIN", "LEFT JOIN"])} #{right} #{using ? "USING (id)" : "ON true"}"
+      else "#{left} #{pick(["JOIN", "LEFT JOIN"])} #{right} #{using ? "USING (id)" : "ON #{on_condition([left_name, right_name], outer)}"}"
       end
     if using && join.end_with?(")") && chance(2)
       ["#{join} AS #{name}", [left_name, right_name, name]]
@@ -117,6 +117,16 @@ def from_item(depth, outer, ctes)
     right, = join_operand(depth, outer, ctes)
     ["(#{left} CROSS JOIN #{right}) AS #{name}#{alias_list if chance(4)}", name]
   end
+end
+
+# A join's ON condition sees the members of its join and the enclosing levels,
+# but no other FROM item of its own level.
+def on_condition(names, outer)
+  return "true" if chance(2)
+
+  aliases = (names.flatten.compact + outer).uniq
+  aliases = ALIASES if aliases.empty? || chance(6)
+  "#{pick(aliases)}.#{column} IS NOT NULL"
 end
 
 def join_operand(depth, outer, ctes)
@@ -166,7 +176,7 @@ def focused
     else "#{n.call}(#{column})#{" AS #{n.call}" if chance(2)}"
     end
   end
-  case RNG.rand(9)
+  case RNG.rand(10)
   when 0 then "WITH c#{list} AS (SELECT #{value.call} FROM #{table} t) SELECT c.#{n.call} FROM c"
   when 1 then "WITH c#{list} AS (SELECT #{value.call}, t.id AS #{n.call} FROM #{table} t) SELECT z.#{n.call}, z.#{n.call} AS q FROM c z"
   when 2 then "SELECT x.#{n.call} FROM (SELECT * FROM (#{table} t CROSS JOIN #{pick(SCALAR_FUNCTIONS)} f) AS j#{list}) x"
@@ -182,6 +192,21 @@ def focused
       "SELECT #{n.call}(t.id) AS #{n.call} FROM #{table} t) x"
   when 6 then "SELECT j.#{pick(pool + ["id"])} FROM #{table} t JOIN #{other} o USING (id) AS j"
   when 7 then "SELECT x.#{n.call} FROM (SELECT #{value.call}, #{value.call} AS q2 FROM #{table} t) x#{list}"
+  when 8
+    # In a join's ON condition, t names the inner t only if that is a member
+    # of the join and not hidden by an inner join alias; otherwise the outer t.
+    third = pick(TABLES)
+    inner = pick(["#{other} t JOIN #{third} o", "#{third} o JOIN #{other} t", "#{other} t, #{third} p JOIN #{third} o",
+      "(#{other} t JOIN #{third} p ON true) j JOIN #{third} o", "#{third} o JOIN (#{other} t JOIN #{third} p ON true)",
+      "#{third} o JOIN #{third} p ON true JOIN #{other} t"])
+    name = pick(COLUMNS_OF[other] + COLUMNS_OF[table] + [pick(NAMES)])
+    condition = chance(3) ? "EXISTS (SELECT t.#{name})" : "t.#{name} IS NOT NULL"
+    subquery = "SELECT 1 FROM #{inner} ON #{condition}"
+    if chance(2)
+      "SELECT 1 FROM #{table} t WHERE EXISTS (#{subquery})"
+    else
+      "SELECT 1 FROM #{table} t LEFT JOIN LATERAL (#{subquery}) x ON true"
+    end
   else "SELECT t.#{n.call} FROM #{table} AS t#{list}"
   end
 end
