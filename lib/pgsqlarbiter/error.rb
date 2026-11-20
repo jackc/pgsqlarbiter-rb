@@ -10,6 +10,11 @@ module Pgsqlarbiter
   # Raised when the analyzer encounters invalid or unparseable SQL structure.
   class ParseError < Error; end
 
+  # Raised when a column or a table alias in the query cannot be matched to
+  # anything in its FROM clause and the {Schema}. A column that is missing from
+  # the schema raises this, as does a reference PostgreSQL itself would reject.
+  class UnresolvedNameError < Error; end
+
   # Raised when the SQL contains more than one statement.
   class MultipleStatementsError < Error; end
 

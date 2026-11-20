@@ -19,5 +19,8 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_development_dependency "minitest", "~> 5.0"
+  # Only to regenerate the parser. The version is pinned because the generator
+  # rewrites racc's output and checks that it has the exact shape it expects.
+  spec.add_development_dependency "racc", "1.8.1"
   spec.add_development_dependency "rake", "~> 13.0"
 end

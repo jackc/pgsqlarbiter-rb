@@ -7,7 +7,11 @@ module Pgsqlarbiter
   # cause resource exhaustion (e.g. generate_series) — resource limits should be enforced elsewhere.
   #
   # Excluded: functions not used by regular queries such as pg_sleep, set_config, lo_*, pg_advisory_lock,
-  # pg_notify, sequence functions, and system information functions.
+  # pg_notify, sequence functions, and system information functions (including the parenthesis-less
+  # ones such as current_user and current_schema).
+  #
+  # Nothing in this list may execute SQL passed to it as text or resolve an object name passed as
+  # text. That is why ts_rewrite, whose two-argument form runs a query, is not here.
   DEFAULT_QUERY_FUNCTIONS = Set[
     # -- Aggregate functions --
     "array_agg", "avg", "bit_and", "bit_or", "bit_xor",
@@ -80,6 +84,8 @@ module Pgsqlarbiter
     "make_timestamp", "make_timestamptz",
     "now", "statement_timestamp",
     "timeofday", "transaction_timestamp",
+    "current_date", "current_time", "current_timestamp",
+    "localtime", "localtimestamp",
 
     # -- Formatting functions --
     "to_char", "to_date", "to_number", "to_timestamp",
@@ -117,6 +123,8 @@ module Pgsqlarbiter
     "json_array_elements", "jsonb_array_elements",
     "json_array_elements_text", "jsonb_array_elements_text",
     "json_scalar", "jsonb_scalar",
+    "json", "json_serialize", "json_exists", "json_query", "json_value",
+    "json_objectagg", "json_arrayagg",
     "json_table",
 
     # -- Array functions --
@@ -156,12 +164,12 @@ module Pgsqlarbiter
     "querytree", "setweight", "strip",
     "to_tsquery", "to_tsvector",
     "ts_delete", "ts_filter", "ts_headline", "ts_lexize",
-    "ts_rank", "ts_rank_cd", "ts_rewrite",
+    "ts_rank", "ts_rank_cd",
     "tsvector_to_array", "websearch_to_tsquery",
 
     # -- XML functions --
     "xmlcomment", "xmlconcat", "xmlexists",
-    "xmlelement", "xmlforest", "xmlparse", "xmlroot", "xmlserialize",
+    "xmlelement", "xmlforest", "xmlparse", "xmlpi", "xmlroot", "xmlserialize",
     "xmltable",
     "xpath", "xpath_exists",
 
