@@ -24,6 +24,11 @@ namespace :test do
   task :postgres_fuzz_names do
     ruby "test/postgres/fuzz_names.rb", *[ENV["COUNT"], ENV["SEED"]].compact
   end
+
+  desc "Check that breaking each name-resolution rule fails a test (needs a live PostgreSQL)"
+  task :mutation do
+    ruby "test/mutation.rb"
+  end
 end
 
 # The parser and keyword table are generated from PostgreSQL's sources. To move

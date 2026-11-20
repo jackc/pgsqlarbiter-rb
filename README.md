@@ -442,13 +442,19 @@ bundle exec rake test                       # unit tests, no database needed
 bundle exec rake test:postgres              # compare analysis with a live server's dependency records
 bundle exec rake test:postgres_fuzz         # fuzz the lexer against a live server
 bundle exec rake test:postgres_fuzz_names   # fuzz name resolution against a live server
+bundle exec rake test:mutation              # check that breaking each name-resolution rule fails a test
 ```
 
 The three live tests use the usual `PG*` environment variables. They create and drop schemas named
 `pgsqlarbiter_oracle`, `pgsqlarbiter_fuzz` and `pgsqlarbiter_fuzz_names` and execute none of the queries
 they check. Each compares what pgsqlarbiter reports with the functions, tables and columns PostgreSQL
 records as dependencies of the same query. The first also checks `Schema::QUERY` against the columns
-the server really gives each function in `FROM`.
+the server really gives each function in `FROM`. Its corpus uses catalog-qualified names such as
+`postgres.pgsqlarbiter_oracle.secrets`, so it passes only when connected to a database named `postgres`.
+
+`test:mutation` also needs the server. It breaks the name-resolution rules listed in `test/mutation.rb`
+one at a time and fails if the unit tests, the corpus and the name fuzzer all still pass with one
+broken. Add a mutation there for each new rule.
 
 `lib/pgsqlarbiter/parser.rb` and `lib/pgsqlarbiter/keywords.rb` are generated. To move to another
 PostgreSQL release, change `POSTGRESQL_TAG` in the `Rakefile`, then:

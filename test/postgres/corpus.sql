@@ -338,6 +338,10 @@ SELECT users.email FROM users
 ----
 SELECT pgsqlarbiter_oracle.users.email FROM users
 ----
+SELECT 1 FROM pgsqlarbiter_oracle.users WHERE EXISTS (SELECT 1 FROM secrets users WHERE pgsqlarbiter_oracle.users.name = 'x')
+----
+SELECT 1 FROM orders u WHERE EXISTS (SELECT 1 FROM ((users u JOIN users p ON true) j1 JOIN users c ON u.amount = 1) j2)
+----
 SELECT x.email FROM (SELECT * FROM users) x
 ----
 @invalid

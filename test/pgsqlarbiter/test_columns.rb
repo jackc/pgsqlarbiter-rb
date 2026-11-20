@@ -178,9 +178,16 @@ class TestColumns < Minitest::Test
     # Tables inside a join with an alias cannot be named from outside it.
     assert_equal ["total"],
       functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (orders u JOIN orders p ON true) j WHERE u.total = 1)")
+    # Nor from the ON condition of a join around it, even inside a further alias.
+    assert_equal ["total"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM ((orders u JOIN orders p ON true) j1 JOIN orders c ON u.total = 1) j2)")
     # A schema-qualified name matches only some of the FROM items of its name.
     assert_equal ["total"],
       functions("SELECT 1 FROM public.users WHERE EXISTS (SELECT 1 FROM users WHERE public.users.total = 1)")
+    # An aliased FROM item is never matched by a schema-qualified name, so this
+    # reads the outer table's column.
+    assert_includes columns("SELECT 1 FROM public.users WHERE EXISTS (SELECT 1 FROM orders users WHERE public.users.name = 1)"),
+      "public.users.name"
   end
 
   def test_on_clause_sees_the_members_of_its_join
