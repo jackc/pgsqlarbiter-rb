@@ -10,32 +10,32 @@ class TestArbiter < Minitest::Test
   def test_valid_statement_types_accepted
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select, :insert, :update, :delete, :merge, :values],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     assert_equal Set[:select, :insert, :update, :delete, :merge, :values], arbiter.allowed_statement_types
   end
 
   def test_unknown_statement_type_raises_argument_error
     error = assert_raises(ArgumentError) do
-      Pgsqlarbiter::Arbiter.new(allowed_statement_types: [:select, :drop], allowed_tables: ["users"])
+      Pgsqlarbiter::Arbiter.new(allowed_statement_types: [:select, :drop], schema: TEST_SCHEMA, allowed_tables: ["users"])
     end
     assert_includes error.message, ":drop"
   end
 
   def test_empty_statement_types_allowed
-    arbiter = Pgsqlarbiter::Arbiter.new(allowed_statement_types: [], allowed_tables: ["users"])
+    arbiter = Pgsqlarbiter::Arbiter.new(allowed_statement_types: [], schema: TEST_SCHEMA, allowed_tables: ["users"])
     assert_equal Set[], arbiter.allowed_statement_types
   end
 
   def test_functions_default_to_default_query_functions
-    arbiter = Pgsqlarbiter::Arbiter.new(allowed_statement_types: [:select], allowed_tables: ["users"])
+    arbiter = Pgsqlarbiter::Arbiter.new(allowed_statement_types: [:select], schema: TEST_SCHEMA, allowed_tables: ["users"])
     assert_equal Pgsqlarbiter::DEFAULT_QUERY_FUNCTIONS, arbiter.allowed_functions
   end
 
   def test_custom_functions
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"],
+      schema: TEST_SCHEMA, allowed_tables: ["users"],
       allowed_functions: ["count", "sum"]
     )
     assert_equal Set["count", "sum"], arbiter.allowed_functions
@@ -48,7 +48,7 @@ class TestArbiter < Minitest::Test
   def test_select_allowed_when_configured
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     assert arbiter.allow?("SELECT * FROM users")
   end
@@ -56,7 +56,7 @@ class TestArbiter < Minitest::Test
   def test_select_denied_when_not_configured
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:insert],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     refute arbiter.allow?("SELECT * FROM users")
   end
@@ -64,7 +64,7 @@ class TestArbiter < Minitest::Test
   def test_insert_denied_when_only_select_configured
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     refute arbiter.allow?("INSERT INTO users (name) VALUES ('alice')")
   end
@@ -72,7 +72,7 @@ class TestArbiter < Minitest::Test
   def test_insert_allowed_when_configured
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:insert],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     assert arbiter.allow?("INSERT INTO users (name) VALUES ('alice')")
   end
@@ -80,7 +80,7 @@ class TestArbiter < Minitest::Test
   def test_update_allowed_when_configured
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:update],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     assert arbiter.allow?("UPDATE users SET name = 'bob' WHERE id = 1")
   end
@@ -88,13 +88,13 @@ class TestArbiter < Minitest::Test
   def test_delete_allowed_when_configured
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:delete],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     assert arbiter.allow?("DELETE FROM users WHERE id = 1")
   end
 
   def test_empty_statement_types_denies_everything
-    arbiter = Pgsqlarbiter::Arbiter.new(allowed_statement_types: [], allowed_tables: ["users"])
+    arbiter = Pgsqlarbiter::Arbiter.new(allowed_statement_types: [], schema: TEST_SCHEMA, allowed_tables: ["users"])
     refute arbiter.allow?("SELECT * FROM users")
   end
 
@@ -105,7 +105,7 @@ class TestArbiter < Minitest::Test
   def test_allowed_table_passes
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     assert arbiter.allow?("SELECT * FROM users")
   end
@@ -113,7 +113,7 @@ class TestArbiter < Minitest::Test
   def test_disallowed_table_fails
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     refute arbiter.allow?("SELECT * FROM orders")
   end
@@ -121,7 +121,7 @@ class TestArbiter < Minitest::Test
   def test_multiple_tables_all_must_be_allowed
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     refute arbiter.allow?("SELECT * FROM users JOIN orders ON users.id = orders.user_id")
   end
@@ -129,7 +129,7 @@ class TestArbiter < Minitest::Test
   def test_multiple_tables_all_allowed
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users", "orders"]
+      schema: TEST_SCHEMA, allowed_tables: ["users", "orders"]
     )
     assert arbiter.allow?("SELECT * FROM users JOIN orders ON users.id = orders.user_id")
   end
@@ -141,7 +141,7 @@ class TestArbiter < Minitest::Test
   def test_allowed_function_passes
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"],
+      schema: TEST_SCHEMA, allowed_tables: ["users"],
       allowed_functions: ["count"]
     )
     assert arbiter.allow?("SELECT count(*) FROM users")
@@ -150,7 +150,7 @@ class TestArbiter < Minitest::Test
   def test_disallowed_function_fails
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"],
+      schema: TEST_SCHEMA, allowed_tables: ["users"],
       allowed_functions: ["sum"]
     )
     refute arbiter.allow?("SELECT count(*) FROM users")
@@ -163,7 +163,7 @@ class TestArbiter < Minitest::Test
   def test_correct_type_and_table_but_wrong_function
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"],
+      schema: TEST_SCHEMA, allowed_tables: ["users"],
       allowed_functions: ["sum"]
     )
     refute arbiter.allow?("SELECT count(*) FROM users")
@@ -172,7 +172,7 @@ class TestArbiter < Minitest::Test
   def test_correct_type_and_function_but_wrong_table
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["orders"],
+      schema: TEST_SCHEMA, allowed_tables: ["orders"],
       allowed_functions: ["count"]
     )
     refute arbiter.allow?("SELECT count(*) FROM users")
@@ -181,7 +181,7 @@ class TestArbiter < Minitest::Test
   def test_correct_table_and_function_but_wrong_type
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:insert],
-      allowed_tables: ["users"],
+      schema: TEST_SCHEMA, allowed_tables: ["users"],
       allowed_functions: ["count"]
     )
     refute arbiter.allow?("SELECT count(*) FROM users")
@@ -190,7 +190,7 @@ class TestArbiter < Minitest::Test
   def test_all_three_pass
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"],
+      schema: TEST_SCHEMA, allowed_tables: ["users"],
       allowed_functions: ["count"]
     )
     assert arbiter.allow?("SELECT count(*) FROM users")
@@ -203,7 +203,7 @@ class TestArbiter < Minitest::Test
   def test_ddl_raises_disallowed_statement_error
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select, :insert, :update, :delete],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     assert_raises(Pgsqlarbiter::DisallowedStatementError) do
       arbiter.allow?("DROP TABLE users")
@@ -213,7 +213,7 @@ class TestArbiter < Minitest::Test
   def test_multiple_statements_raises
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users"]
+      schema: TEST_SCHEMA, allowed_tables: ["users"]
     )
     assert_raises(Pgsqlarbiter::MultipleStatementsError) do
       arbiter.allow?("SELECT 1; SELECT 2")
@@ -227,7 +227,7 @@ class TestArbiter < Minitest::Test
   def test_cte_select_allowed_with_select_type
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:select],
-      allowed_tables: ["users", "orders"]
+      schema: TEST_SCHEMA, allowed_tables: ["users", "orders"]
     )
     assert arbiter.allow?(<<~SQL)
       WITH recent AS (SELECT * FROM orders)
@@ -238,7 +238,7 @@ class TestArbiter < Minitest::Test
   def test_cte_select_denied_without_select_type
     arbiter = Pgsqlarbiter::Arbiter.new(
       allowed_statement_types: [:insert],
-      allowed_tables: ["users", "orders"]
+      schema: TEST_SCHEMA, allowed_tables: ["users", "orders"]
     )
     refute arbiter.allow?(<<~SQL)
       WITH recent AS (SELECT * FROM orders)

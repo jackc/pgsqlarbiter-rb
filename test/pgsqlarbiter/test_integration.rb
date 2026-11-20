@@ -4,7 +4,7 @@ require_relative "../test_helper"
 
 class TestIntegration < Minitest::Test
   def analyze(sql)
-    Pgsqlarbiter.analyze(sql)
+    Pgsqlarbiter.analyze(sql, schema: EMPTY_SCHEMA)
   end
 
   # ====================================================================
@@ -218,25 +218,25 @@ class TestIntegration < Minitest::Test
   # ====================================================================
 
   def test_allowed_simple
-    assert Pgsqlarbiter.allow?("SELECT * FROM users", allowed_tables: ["users"], allowed_functions: [])
+    assert Pgsqlarbiter.allow?("SELECT * FROM users", schema: TEST_SCHEMA, allowed_tables: ["users"], allowed_functions: [])
   end
 
   def test_not_allowed_missing_table
-    refute Pgsqlarbiter.allow?("SELECT * FROM users", allowed_tables: ["other"], allowed_functions: [])
+    refute Pgsqlarbiter.allow?("SELECT * FROM users", schema: TEST_SCHEMA, allowed_tables: ["other"], allowed_functions: [])
   end
 
   def test_allowed_with_function
-    assert Pgsqlarbiter.allow?("SELECT count(*) FROM users", allowed_tables: ["users"], allowed_functions: ["count"])
+    assert Pgsqlarbiter.allow?("SELECT count(*) FROM users", schema: TEST_SCHEMA, allowed_tables: ["users"], allowed_functions: ["count"])
   end
 
   def test_not_allowed_missing_function
-    refute Pgsqlarbiter.allow?("SELECT count(*) FROM users", allowed_tables: ["users"], allowed_functions: [])
+    refute Pgsqlarbiter.allow?("SELECT count(*) FROM users", schema: TEST_SCHEMA, allowed_tables: ["users"], allowed_functions: [])
   end
 
   def test_allowed_complex_query
     assert Pgsqlarbiter.allow?(
       "SELECT u.name, count(*) FROM users u JOIN orders o ON u.id = o.user_id GROUP BY u.name",
-      allowed_tables: ["users", "orders"],
+      schema: TEST_SCHEMA, allowed_tables: ["users", "orders"],
       allowed_functions: ["count"]
     )
   end
@@ -244,20 +244,20 @@ class TestIntegration < Minitest::Test
   def test_not_allowed_extra_table
     refute Pgsqlarbiter.allow?(
       "SELECT * FROM users JOIN secrets ON users.id = secrets.user_id",
-      allowed_tables: ["users"],
+      schema: TEST_SCHEMA, allowed_tables: ["users"],
       allowed_functions: []
     )
   end
 
   def test_allowed_rejects_disallowed_statement
     assert_raises(Pgsqlarbiter::DisallowedStatementError) do
-      Pgsqlarbiter.allow?("DROP TABLE users", allowed_tables: ["users"], allowed_functions: [])
+      Pgsqlarbiter.allow?("DROP TABLE users", schema: TEST_SCHEMA, allowed_tables: ["users"], allowed_functions: [])
     end
   end
 
   def test_allowed_rejects_multiple_statements
     assert_raises(Pgsqlarbiter::MultipleStatementsError) do
-      Pgsqlarbiter.allow?("SELECT 1; SELECT 2", allowed_tables: [], allowed_functions: [])
+      Pgsqlarbiter.allow?("SELECT 1; SELECT 2", schema: TEST_SCHEMA, allowed_tables: [], allowed_functions: [])
     end
   end
 
@@ -443,16 +443,16 @@ class TestIntegration < Minitest::Test
 
   def test_xmltable_allowed
     assert Pgsqlarbiter.allow?(
-      "SELECT * FROM xmltable('/rows/row' PASSING data COLUMNS id int, name text)",
-      allowed_tables: [],
+      "SELECT x.* FROM users, xmltable('/rows/row' PASSING data COLUMNS id int, name text) x",
+      schema: TEST_SCHEMA, allowed_tables: ["users"],
       allowed_functions: ["xmltable"]
     )
   end
 
   def test_json_table_allowed
     assert Pgsqlarbiter.allow?(
-      "SELECT * FROM json_table(data, '$.items[*]' COLUMNS (id int, name text PATH '$.name'))",
-      allowed_tables: [],
+      "SELECT j.id, j.name FROM users, json_table(data, '$.items[*]' COLUMNS (id int, name text PATH '$.name')) j",
+      schema: TEST_SCHEMA, allowed_tables: ["users"],
       allowed_functions: ["json_table"]
     )
   end

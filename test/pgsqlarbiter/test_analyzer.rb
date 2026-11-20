@@ -4,7 +4,7 @@ require_relative "../test_helper"
 
 class TestAnalyzer < Minitest::Test
   def analyze(sql)
-    Pgsqlarbiter.analyze(sql)
+    Pgsqlarbiter.analyze(sql, schema: EMPTY_SCHEMA)
   end
 
   # ====================================================================
@@ -52,7 +52,7 @@ class TestAnalyzer < Minitest::Test
   end
 
   def test_with_recursive_select
-    assert_equal :select, analyze("WITH RECURSIVE cte AS (SELECT 1 UNION ALL SELECT x + 1 FROM cte WHERE x < 10) SELECT * FROM cte").statement_type
+    assert_equal :select, analyze("WITH RECURSIVE cte AS (SELECT 1 AS x UNION ALL SELECT x + 1 FROM cte WHERE x < 10) SELECT * FROM cte").statement_type
   end
 
   def test_with_insert
@@ -494,7 +494,7 @@ class TestAnalyzer < Minitest::Test
   def test_whitelist_with_spaced_identifiers
     assert Pgsqlarbiter.allow?(
       'SELECT * FROM "my schema"."my table"',
-      allowed_tables: ["my schema.my table"],
+      schema: TEST_SCHEMA, allowed_tables: ["my schema.my table"],
       allowed_functions: []
     )
   end
@@ -569,7 +569,7 @@ class TestAnalyzer < Minitest::Test
 
   def test_xmltable
     result = analyze(<<~SQL)
-      SELECT * FROM xmltable('/rows/row' PASSING data COLUMNS id int, name text)
+      SELECT * FROM docs, xmltable('/rows/row' PASSING data COLUMNS id int, name text)
     SQL
     assert_includes result.functions, "xmltable"
     refute_includes result.tables, "xmltable"
@@ -577,7 +577,7 @@ class TestAnalyzer < Minitest::Test
 
   def test_json_table
     result = analyze(<<~SQL)
-      SELECT * FROM json_table(data, '$.items[*]' COLUMNS (id int, name text))
+      SELECT * FROM docs, json_table(data, '$.items[*]' COLUMNS (id int, name text))
     SQL
     assert_includes result.functions, "json_table"
     refute_includes result.tables, "json_table"
@@ -586,7 +586,7 @@ class TestAnalyzer < Minitest::Test
 
   def test_json_table_with_nested_path
     result = analyze(<<~SQL)
-      SELECT * FROM json_table(
+      SELECT * FROM docs, json_table(
         data, '$.root[*]'
         COLUMNS (
           id int,
