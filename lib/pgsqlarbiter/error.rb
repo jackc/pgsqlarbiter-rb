@@ -20,4 +20,8 @@ module Pgsqlarbiter
 
   # Raised when the statement type is not a supported DML type (e.g. DDL, DCL, or TCL).
   class DisallowedStatementError < Error; end
+
+  # Raised when analysis fails in a way that is a bug in pgsqlarbiter rather than
+  # a problem with the query. The query is not allowed.
+  class InternalError < Error; end
 end

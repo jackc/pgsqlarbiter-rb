@@ -446,6 +446,28 @@ class TestSecurity < Minitest::Test
     end
   end
 
+  # --- Column restrictions ---
+
+  def test_written_column_containing_a_dot_is_refused
+    # The analysis would report users.a.b, which reads as column b of a table
+    # called users.a.
+    [
+      "UPDATE users SET \"a.b\" = 1",
+      "UPDATE users SET (\"a.b\", id) = (1, 2)",
+      "INSERT INTO users (\"a.b\") VALUES (1)",
+      "INSERT INTO users (id) VALUES (1) ON CONFLICT (\"a.b\") DO NOTHING",
+      "INSERT INTO users (id) VALUES (1) ON CONFLICT (id) DO UPDATE SET \"a.b\" = 1",
+      "MERGE INTO users u USING users s ON u.id = s.id WHEN MATCHED THEN UPDATE SET \"a.b\" = 1",
+      "MERGE INTO users u USING users s ON u.id = s.id WHEN NOT MATCHED THEN INSERT (\"a.b\") VALUES (1)"
+    ].each do |sql|
+      error = assert_raises(Pgsqlarbiter::ParseError, sql) do
+        Pgsqlarbiter.judge(sql, schema: TEST_SCHEMA, allowed_tables: {"users" => %w[id]},
+          allowed_statement_types: %i[insert update merge])
+      end
+      assert_match(/containing a dot/, error.message)
+    end
+  end
+
   # --- Errors are always Pgsqlarbiter::Error ---
 
   def test_bad_input_raises_only_pgsqlarbiter_errors
@@ -454,5 +476,56 @@ class TestSecurity < Minitest::Test
       assert_raises(Pgsqlarbiter::Error, sql.inspect) { analyze(sql) }
     end
     assert_raises(Pgsqlarbiter::Error) { analyze(nil) }
+  end
+
+  def test_default_in_a_select_list_is_not_an_internal_error
+    # PostgreSQL rejects these when they run; analyzing them must not crash.
+    ["SELECT DEFAULT", "SELECT DEFAULT AS x", "SELECT (DEFAULT)", "SELECT DEFAULT::int"].each do |sql|
+      analyze(sql)
+    rescue Pgsqlarbiter::InternalError, NoMethodError => e
+      flunk "#{sql.inspect} raised #{e.class}: #{e.message}"
+    rescue Pgsqlarbiter::Error
+      nil
+    end
+  end
+
+  def test_internal_errors_are_pgsqlarbiter_errors
+    analyzer = Pgsqlarbiter::Analyzer.new(EMPTY_SCHEMA)
+    analyzer.define_singleton_method(:walk) { |_| raise NoMethodError, "boom" }
+    error = assert_raises(Pgsqlarbiter::InternalError) { analyzer.analyze("SELECT 1") }
+    assert_kind_of Pgsqlarbiter::Error, error
+    assert_kind_of NoMethodError, error.cause
+  end
+
+  # A statement start followed by random keywords, punctuation and literals.
+  # Most fail to parse; whatever happens, it must be a library error that is
+  # not an internal one.
+  RANDOM_STARTS = [
+    "SELECT", "SELECT", "SELECT 1 FROM users WHERE", "SELECT * FROM users u", "WITH c AS (SELECT 1)", "VALUES (",
+    "INSERT INTO users", "INSERT INTO users (id) VALUES (", "UPDATE users SET", "DELETE FROM users",
+    "MERGE INTO users u USING orders o ON"
+  ].freeze
+  RANDOM_TOKENS = (
+    %w[SELECT FROM WHERE VALUES SET AS JOIN ON USING LATERAL GROUP BY ORDER LIMIT UNION EXISTS IN IS NOT NULL
+      DEFAULT CASE WHEN THEN ELSE END ARRAY ROW AND OR RETURNING CONFLICT DO NOTHING UPDATE INSERT MATCHED
+      OVER FILTER WITHIN TRUE users orders u o id name total danger x] +
+    ["(", ")", "(", ")", "[", "]", ",", ",", ".", "*", "=", "+", "::int", "1", "'a'", "$1", %q("a.b"), %q("x")]
+  ).freeze
+
+  def test_random_token_sequences_raise_only_pgsqlarbiter_errors
+    rng = Random.new(20_261_120)
+    5000.times do
+      tokens = Array.new(rng.rand(1..10)) { RANDOM_TOKENS[rng.rand(RANDOM_TOKENS.length)] }
+      sql = [RANDOM_STARTS[rng.rand(RANDOM_STARTS.length)], *tokens].join(" ")
+      begin
+        Pgsqlarbiter.analyze(sql, schema: TEST_SCHEMA)
+      rescue Pgsqlarbiter::InternalError => e
+        flunk "#{sql.inspect} raised #{e.message}"
+      rescue Pgsqlarbiter::Error
+        nil
+      rescue => e
+        flunk "#{sql.inspect} raised #{e.class}: #{e.message}"
+      end
+    end
   end
 end

@@ -31,6 +31,7 @@ module Pgsqlarbiter
   # @raise [MultipleStatementsError] if the SQL contains more than one statement
   # @raise [UnresolvedNameError] if a column or table alias cannot be resolved
   # @raise [DisallowedStatementError] if the statement type is not a supported DML type
+  # @raise [InternalError] if analysis fails because of a bug in pgsqlarbiter
   def self.analyze(sql, schema:)
     Analyzer.new(schema).analyze(sql)
   end
@@ -58,6 +59,7 @@ module Pgsqlarbiter
   # @raise [UnresolvedNameError] if a column or table alias cannot be resolved
   # @raise [MultipleStatementsError] if the SQL contains more than one statement
   # @raise [DisallowedStatementError] if the statement type is not a supported DML type
+  # @raise [InternalError] if analysis fails because of a bug in pgsqlarbiter
   def self.judge(sql, schema:, allowed_tables:, allowed_statement_types: [:select],
     allowed_functions: DEFAULT_QUERY_FUNCTIONS, allowed_types: DEFAULT_QUERY_TYPES)
     Arbiter.new(schema: schema, allowed_statement_types: allowed_statement_types, allowed_tables: allowed_tables,
@@ -85,6 +87,7 @@ module Pgsqlarbiter
   # @raise [UnresolvedNameError] if a column or table alias cannot be resolved
   # @raise [MultipleStatementsError] if the SQL contains more than one statement
   # @raise [DisallowedStatementError] if the statement type is not a supported DML type
+  # @raise [InternalError] if analysis fails because of a bug in pgsqlarbiter
   def self.allow?(sql, schema:, allowed_tables:, allowed_statement_types: [:select],
     allowed_functions: DEFAULT_QUERY_FUNCTIONS, allowed_types: DEFAULT_QUERY_TYPES)
     Arbiter.new(schema: schema, allowed_statement_types: allowed_statement_types, allowed_tables: allowed_tables,

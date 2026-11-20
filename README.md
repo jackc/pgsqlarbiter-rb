@@ -349,6 +349,7 @@ All exceptions inherit from `Pgsqlarbiter::Error`:
 | `UnresolvedNameError` | A column or table alias cannot be matched to the schema and the query's `FROM` clause |
 | `MultipleStatementsError` | More than one statement in the SQL |
 | `DisallowedStatementError` | Statement type is not SELECT, INSERT, UPDATE, DELETE, MERGE, or VALUES |
+| `InternalError` | Analysis failed because of a bug in pgsqlarbiter; please report the query |
 
 Treat any `Pgsqlarbiter::Error` as a denial.
 

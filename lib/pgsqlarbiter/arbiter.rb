@@ -68,6 +68,7 @@ module Pgsqlarbiter
     # @raise [UnresolvedNameError] if a column or table alias cannot be resolved
     # @raise [MultipleStatementsError] if the SQL contains more than one statement
     # @raise [DisallowedStatementError] if the statement type is not a supported DML type
+    # @raise [InternalError] if analysis fails because of a bug in pgsqlarbiter
     def judge(sql)
       result = Pgsqlarbiter.analyze(sql, schema: @schema)
       bad_statement_types = result.statement_types.reject { |t| @allowed_statement_types.include?(t) }.freeze
@@ -104,6 +105,7 @@ module Pgsqlarbiter
     # @raise [UnresolvedNameError] if a column or table alias cannot be resolved
     # @raise [MultipleStatementsError] if the SQL contains more than one statement
     # @raise [DisallowedStatementError] if the statement type is not a supported DML type
+    # @raise [InternalError] if analysis fails because of a bug in pgsqlarbiter
     def allow?(sql)
       judge(sql).allowed?
     end

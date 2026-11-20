@@ -145,7 +145,20 @@ module Pgsqlarbiter
     # @raise [MultipleStatementsError] if the SQL contains more than one statement
     # @raise [DisallowedStatementError] if the statement is not SELECT, INSERT,
     #   UPDATE, DELETE, MERGE, or VALUES
+    # @raise [InternalError] if analysis fails in a way that is a bug in pgsqlarbiter
     def analyze(sql)
+      analyze_statement(sql)
+    rescue Error
+      raise
+    rescue StandardError => e
+      # The query is untrusted input; whatever it provokes, the caller sees
+      # one of this library's errors, and the query is not allowed.
+      raise InternalError, "internal error while analyzing the query (#{e.class}: #{e.message})"
+    end
+
+    private
+
+    def analyze_statement(sql)
       tokens = single_statement(Lexer.new.tokenize(sql))
       tree = Parser.new.parse(tokens)
 
@@ -179,8 +192,6 @@ module Pgsqlarbiter
         types: @types.to_a.sort.freeze
       )
     end
-
-    private
 
     # --- Statement boundaries ---
 
@@ -565,6 +576,9 @@ module Pgsqlarbiter
     # what is known; that can deny a valid query but never allows a bad one.
     def figure_name(node)
       loop do
+        # A bare keyword, such as DEFAULT.
+        return nil unless node.is_a?(Node)
+
         kids = node.children
         case node.name
         when :a_expr, :b_expr
@@ -860,7 +874,9 @@ module Pgsqlarbiter
       target = current_level.target
       raise ParseError, "unsupported syntax: column assignment outside a data-modifying statement" unless target
 
-      @columns << "#{target.table}.#{column}"
+      # The arbiter splits a column off its table at the last dot, so a dot in
+      # the column name would make it read as a column of another table.
+      @columns << "#{target.table}.#{(column == "*") ? column : checked(column)}"
     end
 
     # --- Functions ---
