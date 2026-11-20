@@ -645,3 +645,20 @@ SELECT t.a, t.b FROM unnest(ARRAY[ROW(1, 'x')::secret_type]) AS t(a, b)
 SELECT w.word, w.g FROM ts_stat('select null::tsvector') w
 ----
 SELECT k.word, k.g FROM pg_get_keywords() k
+----
+SELECT u.name FROM users u WHERE EXISTS (SELECT 1 FROM orders u WHERE u.amount > 0)
+----
+WITH x AS (SELECT u.amount FROM orders u) SELECT u.name FROM users u, x
+----
+SELECT (WITH x AS (SELECT u.name) SELECT x.name FROM x) FROM users u
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS month) u, (SELECT u.month) x)
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM ((SELECT 1 AS month) u JOIN orders o ON true) j WHERE u.month = 1)
+----
+SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders o JOIN orders p ON u.month = 1, (SELECT 1 AS month) u)
+----
+SELECT (WITH x AS (SELECT u.month) SELECT 1 FROM x, (SELECT 1 AS month) u) FROM users u
+----
+@invalid
+WITH x AS (SELECT o.id FROM orders) SELECT 1 FROM users o, x

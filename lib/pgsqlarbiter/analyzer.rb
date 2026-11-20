@@ -52,7 +52,11 @@ module Pgsqlarbiter
 
     # One query level: a SELECT, or an INSERT, UPDATE, DELETE or MERGE. It
     # holds the things its FROM clause (and target) make visible by name.
-    Level = Struct.new(:parent, :entries, :target, :outputs, :index)
+    #
+    # * from_depth: how many FROM items of this level the walk is inside.
+    # * in_parent_from: the level is inside a FROM item of its parent, where
+    #   PostgreSQL may hide some of the parent's FROM items from it.
+    Level = Struct.new(:parent, :entries, :target, :outputs, :index, :from_depth, :in_parent_from)
 
     # Something a qualified name can refer to: a table, subquery, CTE, function
     # or join in FROM, or the target of a data-modifying statement.
@@ -158,7 +162,7 @@ module Pgsqlarbiter
       @kinds << statement_type
       walk(tree)
       @final = true
-      @refs.each { |level, names, star, alias_ok| resolve_ref(level, names, star, alias_ok) }
+      @refs.each { |ref| resolve_ref(*ref) }
 
       Analysis.new(
         statement_type: statement_type,
@@ -295,10 +299,14 @@ module Pgsqlarbiter
           [checked(leaf(cte.children[0])), Cte.new(core_of(cte.children[5], true), declared && list_names(declared))]
         end
         named.each { |name, info| scope[name] = info } if recursive
+        # A CTE body cannot see the FROM items of the statement the WITH is
+        # attached to, only those of the levels around that statement.
+        @stack << -> { @level = level }
         ctes.zip(named).reverse_each do |cte, (name, info)|
           @stack << -> { scope[name] = info } unless recursive
           visit(cte.children[1..])
         end
+        @stack << -> { @level = level.parent }
       else
         visit(body)
       end
@@ -342,7 +350,11 @@ module Pgsqlarbiter
     end
 
     def new_level(outputs = nil)
-      Level.new(@level, [], nil, outputs, nil)
+      Level.new(@level, [], nil, outputs, nil, 0, in_from?)
+    end
+
+    def in_from?
+      !!@level && @level.from_depth > 0
     end
 
     def current_level
@@ -628,6 +640,8 @@ module Pgsqlarbiter
       kids = node.children
       item = kids.find { |c| c.is_a?(Node) }
       level = current_level
+      level.from_depth += 1
+      @stack << -> { level.from_depth -= 1 }
       case item.name
       when :relation_expr
         name, list = alias_of(kids[1])
@@ -855,8 +869,9 @@ module Pgsqlarbiter
     # * "(expr).name" and anything after a subscript always counts as a
     #   possible call of name.
     # * "alias.name" is a column only if name is certainly a column of
-    #   everything alias could refer to, at this query level or any enclosing
-    #   one. Otherwise it counts as a call of name on the whole row.
+    #   everything alias could refer to: what candidates finds, from this
+    #   query level out to the nearest one PostgreSQL would certainly bind it
+    #   to. Otherwise it counts as a call of name on the whole row.
     # * A bare name is never a call, but it must be found: as a column of
     #   something in FROM at this level or an enclosing one, or as the name of
     #   a FROM item (a whole-row reference). A name that cannot be found is
@@ -889,15 +904,18 @@ module Pgsqlarbiter
           end
         end
       end
-      @refs << [current_level, names, star, @alias_refs.key?(node)]
+      @refs << [current_level, names, star, @alias_refs.key?(node), in_from?]
     end
 
-    def resolve_ref(level, names, star, alias_ok)
+    def resolve_ref(level, names, star, alias_ok, in_from)
       return resolve_bare_name(level, names[0], alias_ok) if names.length == 1 && !star
 
       # [catalog.][schema.]qualifier.column, or [catalog.][schema.]qualifier.*
       qualifier = star ? names[-1] : names[-2]
-      found = candidates(level, qualifier)
+      # A schema-qualified qualifier matches only some of the FROM items of
+      # its name, so it is never taken to stop at the nearest.
+      nearest = names.length == (star ? 1 : 2)
+      found = candidates(level, qualifier, nearest, in_from)
       if found.empty?
         raise UnresolvedNameError, "#{names.join(".").inspect} refers to #{qualifier.inspect}, which is not in FROM"
       end
@@ -949,10 +967,17 @@ module Pgsqlarbiter
       raise UnresolvedNameError, "column #{name.inspect} cannot be resolved" unless found
     end
 
-    # Everything the qualifier could refer to, at this level and every
-    # enclosing one. PostgreSQL uses the nearest; taking all of them means a
-    # mistake about which is nearest can only deny a query.
-    def candidates(level, qualifier)
+    # Everything the qualifier could refer to, from this level outward.
+    # PostgreSQL binds a qualifier to the nearest level with a FROM item of
+    # that name and never looks further out, so the walk stops at a level with
+    # an entry that is certainly named qualifier and certainly visible from
+    # the reference. Entries of uncertain name at that level or nearer stay
+    # candidates. The walk goes on past a level whose FROM items the
+    # reference may not see (it is inside that level's FROM clause, where
+    # PostgreSQL hides later and non-LATERAL items), and past entries that
+    # are hidden by a join alias or are OLD, NEW or EXCLUDED, which are not
+    # visible everywhere in their level.
+    def candidates(level, qualifier, nearest, in_from)
       found = []
       while level
         index = index_of(level)
@@ -960,6 +985,9 @@ module Pgsqlarbiter
         found.concat(entries) if entries
         found.concat(index.wildcards)
         spend(1 + found.length)
+        return found if nearest && !in_from && entries&.any? { |entry| !entry.hidden && !entry.pseudo }
+
+        in_from = level.in_parent_from
         level = level.parent
       end
       found

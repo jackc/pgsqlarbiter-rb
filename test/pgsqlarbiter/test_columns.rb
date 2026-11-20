@@ -155,9 +155,48 @@ class TestColumns < Minitest::Test
     assert_equal ["secret_stuff"], functions("SELECT 1 FROM users u, LATERAL (SELECT u.secret_stuff) x")
   end
 
-  def test_same_alias_at_two_levels_must_be_a_column_of_both
-    assert_equal ["total"], functions("SELECT (SELECT u.total FROM orders u LIMIT 1) FROM users u")
-    assert_empty functions("SELECT (SELECT u.id FROM orders u LIMIT 1) FROM users u")
+  def test_same_alias_at_two_levels_means_the_nearest
+    assert_empty functions("SELECT (SELECT u.total FROM orders u LIMIT 1) FROM users u")
+    assert_equal ["orders.total"], columns("SELECT (SELECT u.total FROM orders u LIMIT 1) FROM users u")
+    assert_equal ["name"], functions("SELECT (SELECT u.name FROM orders u LIMIT 1) FROM users u")
+    assert_equal ["orders.*"], columns("SELECT (SELECT u.name FROM orders u LIMIT 1) FROM users u")
+    assert_empty functions("SELECT u.name FROM users u WHERE EXISTS (SELECT 1 FROM orders u WHERE u.total > 0)")
+    assert_empty functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders o WHERE EXISTS (SELECT 1 FROM orders u WHERE u.total = o.total))")
+    assert_equal ["orders.*"], columns("SELECT (SELECT u.* FROM orders u LIMIT 1) FROM users u")
+  end
+
+  def test_nearest_alias_must_be_visible_where_it_is_used
+    # A non-LATERAL subquery in FROM cannot see the other items of its FROM,
+    # so PostgreSQL looks for u further out.
+    assert_equal ["total"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u, (SELECT u.total) x)")
+    assert_equal ["total"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders u, LATERAL (SELECT u.total) x)")
+    # A join's ON clause cannot see FROM items written after it.
+    assert_equal ["total"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM orders o JOIN orders p ON u.total = 1, orders u)")
+    # Tables inside a join with an alias cannot be named from outside it.
+    assert_equal ["total"],
+      functions("SELECT 1 FROM users u WHERE EXISTS (SELECT 1 FROM (orders u JOIN orders p ON true) j WHERE u.total = 1)")
+    # A schema-qualified name matches only some of the FROM items of its name.
+    assert_equal ["total"],
+      functions("SELECT 1 FROM public.users WHERE EXISTS (SELECT 1 FROM users WHERE public.users.total = 1)")
+  end
+
+  def test_cte_cannot_see_the_from_items_of_its_statement
+    assert_empty functions("WITH x AS (SELECT u.total FROM orders u) SELECT u.name FROM users u, x")
+    assert_equal ["orders.total", "users.name"],
+      columns("WITH x AS (SELECT u.total FROM orders u) SELECT u.name FROM users u, x")
+    assert_unresolved("WITH x AS (SELECT o.id FROM orders) SELECT 1 FROM users o, x")
+    assert_unresolved("WITH x AS (SELECT email FROM orders) SELECT 1 FROM users, x")
+    assert_unresolved("WITH x AS (SELECT 1 FROM orders WHERE o.id = 1) UPDATE orders o SET total = 1 FROM x")
+  end
+
+  def test_cte_inside_a_subquery_sees_the_levels_around_it
+    assert_empty functions("SELECT (WITH x AS (SELECT u.name) SELECT x.name FROM x) FROM users u")
+    assert_equal ["users.name"], columns("SELECT (WITH x AS (SELECT u.name) SELECT x.name FROM x) FROM users u")
+    assert_equal ["total"],
+      functions("SELECT (WITH x AS (SELECT u.total) SELECT 1 FROM x, orders u) FROM users u")
   end
 
   def test_unknown_qualifier_is_refused
