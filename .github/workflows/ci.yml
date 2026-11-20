@@ -16,7 +16,7 @@ jobs:
       matrix:
         ruby-version: ["3.4", "4.0"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
@@ -43,7 +43,7 @@ jobs:
       PGPASSWORD: postgres
       PGDATABASE: postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "4.0"
@@ -62,7 +62,7 @@ jobs:
   generated:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "4.0"
